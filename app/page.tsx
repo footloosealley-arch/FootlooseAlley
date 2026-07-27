@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import Image from "next/image";
 
 export default function Home() {
@@ -63,3 +64,10 @@ export default function Home() {
     </div>
   );
 }
+=======
+import { redirect } from "next/navigation";
+
+export default function Home() {
+  redirect("/dashboard");
+}
+>>>>>>> 9479299bf50418452d20e09ba5a619f3e7c42b9a
