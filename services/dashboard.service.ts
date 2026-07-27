@@ -7,6 +7,11 @@ import type {
   Student,
 } from "@/types/database";
 
+export type DashboardFeeDueStatus =
+  | "Overdue"
+  | "Due Today"
+  | "Due Soon";
+
 export interface DashboardFeeDue {
   id: number;
   student_id: number;
@@ -14,9 +19,20 @@ export interface DashboardFeeDue {
   student_phone: string;
   amount_due: number;
   due_date: string;
-  status: "Due Today" | "Overdue";
+  status: DashboardFeeDueStatus;
   membership_plan: string | null;
   reminder_count: number;
+}
+
+export interface DashboardFeeDueSummary {
+  overdueCount: number;
+  overdueAmount: number;
+  dueTodayCount: number;
+  dueTodayAmount: number;
+  dueSoonCount: number;
+  dueSoonAmount: number;
+  totalActionCount: number;
+  totalActionAmount: number;
 }
 
 export interface DashboardRecentPayment {
@@ -50,6 +66,7 @@ export interface DashboardData {
   recentPayments: DashboardRecentPayment[];
   recentEnquiries: Enquiry[];
   urgentFeeDues: DashboardFeeDue[];
+  feeDueSummary: DashboardFeeDueSummary;
 }
 
 interface FeeDueDatabaseRow {
@@ -78,19 +95,50 @@ function getLocalDateString(
   return `${year}-${month}-${day}`;
 }
 
-function calculateFeeDueStatus(
+function addDays(
+  dateString: string,
+  days: number
+): string {
+  const [year, month, day] = dateString
+    .split("-")
+    .map(Number);
+
+  const date = new Date(
+    year,
+    month - 1,
+    day
+  );
+
+  date.setDate(date.getDate() + days);
+
+  return getLocalDateString(date);
+}
+
+function isClosedFeeDueStatus(
+  status: string | null
+): boolean {
+  return (
+    status === "Paid" ||
+    status === "Waived" ||
+    status === "Cancelled"
+  );
+}
+
+function isActiveFeeDueStatus(
+  status: string | null
+): boolean {
+  return !isClosedFeeDueStatus(status);
+}
+
+function calculateDashboardFeeDueStatus(
   dueDate: string,
-  existingStatus: string | null
-): "Due Today" | "Overdue" | null {
-  if (
-    existingStatus === "Paid" ||
-    existingStatus === "Waived" ||
-    existingStatus === "Cancelled"
-  ) {
+  existingStatus: string | null,
+  today: string,
+  nextSevenDays: string
+): DashboardFeeDueStatus | null {
+  if (isClosedFeeDueStatus(existingStatus)) {
     return null;
   }
-
-  const today = getLocalDateString();
 
   if (dueDate < today) {
     return "Overdue";
@@ -100,7 +148,100 @@ function calculateFeeDueStatus(
     return "Due Today";
   }
 
+  if (
+    dueDate > today &&
+    dueDate <= nextSevenDays
+  ) {
+    return "Due Soon";
+  }
+
   return null;
+}
+
+function getFeeDuePriority(
+  status: DashboardFeeDueStatus
+): number {
+  if (status === "Overdue") {
+    return 0;
+  }
+
+  if (status === "Due Today") {
+    return 1;
+  }
+
+  return 2;
+}
+
+function calculateFeeDueSummary(
+  feeDues: DashboardFeeDue[]
+): DashboardFeeDueSummary {
+  const overdueFeeDues = feeDues.filter(
+    (feeDue) =>
+      feeDue.status === "Overdue"
+  );
+
+  const dueTodayFeeDues = feeDues.filter(
+    (feeDue) =>
+      feeDue.status === "Due Today"
+  );
+
+  const dueSoonFeeDues = feeDues.filter(
+    (feeDue) =>
+      feeDue.status === "Due Soon"
+  );
+
+  function sumAmounts(
+    records: DashboardFeeDue[]
+  ): number {
+    return Number(
+      records
+        .reduce(
+          (total, feeDue) =>
+            total +
+            Number(feeDue.amount_due),
+          0
+        )
+        .toFixed(2)
+    );
+  }
+
+  const overdueAmount =
+    sumAmounts(overdueFeeDues);
+
+  const dueTodayAmount =
+    sumAmounts(dueTodayFeeDues);
+
+  const dueSoonAmount =
+    sumAmounts(dueSoonFeeDues);
+
+  return {
+    overdueCount:
+      overdueFeeDues.length,
+
+    overdueAmount,
+
+    dueTodayCount:
+      dueTodayFeeDues.length,
+
+    dueTodayAmount,
+
+    dueSoonCount:
+      dueSoonFeeDues.length,
+
+    dueSoonAmount,
+
+    totalActionCount:
+      feeDues.length,
+
+    totalActionAmount:
+      Number(
+        (
+          overdueAmount +
+          dueTodayAmount +
+          dueSoonAmount
+        ).toFixed(2)
+      ),
+  };
 }
 
 class DashboardService {
@@ -193,16 +334,19 @@ class DashboardService {
     }
 
     const students =
-      (studentsResult.data as Student[] | null) ??
-      [];
+      (studentsResult.data as
+        | Student[]
+        | null) ?? [];
 
     const enquiries =
-      (enquiriesResult.data as Enquiry[] | null) ??
-      [];
+      (enquiriesResult.data as
+        | Enquiry[]
+        | null) ?? [];
 
     const payments =
-      (paymentsResult.data as Payment[] | null) ??
-      [];
+      (paymentsResult.data as
+        | Payment[]
+        | null) ?? [];
 
     const attendance =
       attendanceResult.data ?? [];
@@ -217,41 +361,51 @@ class DashboardService {
         | DashboardRecentPaymentRow[]
         | null) ?? [];
 
-    const recentPayments: DashboardRecentPayment[] =
-      recentPaymentRows.map((payment) => {
-        const relatedStudent = Array.isArray(
-          payment.Students
-        )
-          ? payment.Students[0] ?? null
-          : payment.Students;
+    const recentPayments:
+      DashboardRecentPayment[] =
+        recentPaymentRows.map(
+          (payment) => {
+            const relatedStudent =
+              Array.isArray(
+                payment.Students
+              )
+                ? payment.Students[0] ??
+                  null
+                : payment.Students;
 
-        return {
-          id: Number(payment.id),
+            return {
+              id:
+                Number(payment.id),
 
-          amount: Number(
-            payment.amount ?? 0
-          ),
+              amount:
+                Number(
+                  payment.amount ?? 0
+                ),
 
-          payment_date:
-            payment.payment_date,
+              payment_date:
+                payment.payment_date,
 
-          payment_method:
-            payment.payment_method,
+              payment_method:
+                payment.payment_method,
 
-          Students: relatedStudent
-            ? {
-                Name:
-                  relatedStudent.Name ??
-                  null,
-              }
-            : null,
-        };
-      });
+              Students: relatedStudent
+                ? {
+                    Name:
+                      relatedStudent.Name ??
+                      null,
+                  }
+                : null,
+            };
+          }
+        );
 
     const today = new Date();
 
     const todayString =
       getLocalDateString(today);
+
+    const nextSevenDays =
+      addDays(todayString, 7);
 
     const birthdays =
       (
@@ -288,26 +442,21 @@ class DashboardService {
     const currentYear =
       today.getFullYear();
 
-    const activeFeeDues =
-      feeDues.filter((feeDue) => {
-        const status =
-          calculateFeeDueStatus(
-            feeDue.due_date,
-            feeDue.status
-          );
-
-        return status !== null;
-      });
-
     const totalOutstanding =
-      activeFeeDues.reduce(
-        (total, feeDue) =>
-          total +
-          Number(
-            feeDue.amount_due ?? 0
-          ),
-        0
-      );
+      feeDues
+        .filter((feeDue) =>
+          isActiveFeeDueStatus(
+            feeDue.status
+          )
+        )
+        .reduce(
+          (total, feeDue) =>
+            total +
+            Number(
+              feeDue.amount_due ?? 0
+            ),
+          0
+        );
 
     const stats: DashboardStats = {
       totalStudents:
@@ -363,41 +512,43 @@ class DashboardService {
         ),
 
       feesDue:
-        totalOutstanding,
+        Number(
+          totalOutstanding.toFixed(2)
+        ),
     };
 
     const studentsById =
       new Map<number, Student>();
 
-    students.forEach(
-      (student) => {
-        studentsById.set(
-          Number(student.id),
-          student
-        );
-      }
-    );
+    students.forEach((student) => {
+      studentsById.set(
+        Number(student.id),
+        student
+      );
+    });
 
-    const urgentFeeDues:
+    const allActionFeeDues:
       DashboardFeeDue[] =
-        activeFeeDues
+        feeDues
           .map((feeDue) => {
+            const status =
+              calculateDashboardFeeDueStatus(
+                feeDue.due_date,
+                feeDue.status,
+                todayString,
+                nextSevenDays
+              );
+
+            if (!status) {
+              return null;
+            }
+
             const student =
               studentsById.get(
                 Number(
                   feeDue.student_id
                 )
               );
-
-            const status =
-              calculateFeeDueStatus(
-                feeDue.due_date,
-                feeDue.status
-              );
-
-            if (!status) {
-              return null;
-            }
 
             return {
               id:
@@ -428,9 +579,12 @@ class DashboardService {
               status,
 
               membership_plan:
-                feeDue.membership_plan?.trim() ||
-                student?.membership_plan?.trim() ||
-                student?.Program?.trim() ||
+                feeDue.membership_plan
+                  ?.trim() ||
+                student?.membership_plan
+                  ?.trim() ||
+                student?.Program
+                  ?.trim() ||
                 null,
 
               reminder_count:
@@ -448,30 +602,30 @@ class DashboardService {
           )
           .sort(
             (first, second) => {
-              if (
-                first.status ===
-                  "Overdue" &&
-                second.status !==
-                  "Overdue"
-              ) {
-                return -1;
-              }
+              const priorityDifference =
+                getFeeDuePriority(
+                  first.status
+                ) -
+                getFeeDuePriority(
+                  second.status
+                );
 
               if (
-                second.status ===
-                  "Overdue" &&
-                first.status !==
-                  "Overdue"
+                priorityDifference !== 0
               ) {
-                return 1;
+                return priorityDifference;
               }
 
               return first.due_date.localeCompare(
                 second.due_date
               );
             }
-          )
-          .slice(0, 6);
+          );
+
+    const feeDueSummary =
+      calculateFeeDueSummary(
+        allActionFeeDues
+      );
 
     return {
       stats,
@@ -479,7 +633,7 @@ class DashboardService {
       recentPayments,
 
       recentEnquiries:
-        enquiries
+        [...enquiries]
           .sort(
             (first, second) =>
               new Date(
@@ -491,7 +645,10 @@ class DashboardService {
           )
           .slice(0, 5),
 
-      urgentFeeDues,
+      urgentFeeDues:
+        allActionFeeDues.slice(0, 9),
+
+      feeDueSummary,
     };
   }
 }

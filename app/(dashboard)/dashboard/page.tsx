@@ -76,6 +76,8 @@ export default function DashboardPage() {
           <div className="mt-6">
             <FeeDueActionCard
               feeDues={data.urgentFeeDues}
+              summary={data.feeDueSummary}
+              onDataChanged={refresh}
             />
           </div>
 
