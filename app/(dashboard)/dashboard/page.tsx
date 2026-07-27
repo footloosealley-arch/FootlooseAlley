@@ -2,19 +2,23 @@
 
 import PageHeader from "@/components/layout/PageHeader";
 
-import DashboardGrid from "@/components/dashboard/DashboardGrid";
-import RevenueCard from "@/components/dashboard/RevenueCard";
 import AttendanceCard from "@/components/dashboard/AttendanceCard";
 import BirthdayCard from "@/components/dashboard/BirthdayCard";
+import DashboardGrid from "@/components/dashboard/DashboardGrid";
+import FeeDueActionCard from "@/components/dashboard/FeeDueActionCard";
+import QuickActions from "@/components/dashboard/QuickActions";
 import RecentEnquiries from "@/components/dashboard/RecentEnquiries";
 import RecentPayments from "@/components/dashboard/RecentPayments";
-import QuickActions from "@/components/dashboard/QuickActions";
+import RevenueCard from "@/components/dashboard/RevenueCard";
 
-import LoadingCard from "@/components/common/LoadingCard";
 import ErrorCard from "@/components/common/ErrorCard";
+import LoadingCard from "@/components/common/LoadingCard";
 
 import { useAsync } from "@/hooks/useAsync";
-import { dashboardService } from "@/services/dashboard.service";
+
+import {
+  dashboardService,
+} from "@/services/dashboard.service";
 
 export default function DashboardPage() {
   const {
@@ -34,11 +38,19 @@ export default function DashboardPage() {
       />
 
       {loading && (
-        <DashboardGrid>
-          <LoadingCard title="Loading Revenue..." />
-          <LoadingCard title="Loading Attendance..." />
-          <LoadingCard title="Loading Birthdays..." />
-        </DashboardGrid>
+        <>
+          <DashboardGrid>
+            <LoadingCard title="Loading Revenue..." />
+
+            <LoadingCard title="Loading Attendance..." />
+
+            <LoadingCard title="Loading Birthdays..." />
+          </DashboardGrid>
+
+          <div className="mt-6">
+            <LoadingCard title="Loading Fee Dues..." />
+          </div>
+        </>
       )}
 
       {!loading && error && (
@@ -52,18 +64,20 @@ export default function DashboardPage() {
       {!loading && !error && data && (
         <>
           <DashboardGrid>
-            <RevenueCard
-              stats={data.stats}
-            />
+            <RevenueCard stats={data.stats} />
 
-            <AttendanceCard
-              stats={data.stats}
-            />
+            <AttendanceCard stats={data.stats} />
 
             <BirthdayCard
               birthdays={data.birthdays}
             />
           </DashboardGrid>
+
+          <div className="mt-6">
+            <FeeDueActionCard
+              feeDues={data.urgentFeeDues}
+            />
+          </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
             <RecentEnquiries

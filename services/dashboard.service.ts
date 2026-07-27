@@ -1,16 +1,106 @@
 import { supabase } from "@/lib/supabase";
+
 import type {
-  Student,
-  Payment,
-  Enquiry,
   DashboardStats,
+  Enquiry,
+  Payment,
+  Student,
 } from "@/types/database";
+
+export interface DashboardFeeDue {
+  id: number;
+  student_id: number;
+  student_name: string;
+  student_phone: string;
+  amount_due: number;
+  due_date: string;
+  status: "Due Today" | "Overdue";
+  membership_plan: string | null;
+  reminder_count: number;
+}
+
+export interface DashboardRecentPayment {
+  id: number;
+  amount: number;
+  payment_date: string;
+  payment_method: string | null;
+  Students?: {
+    Name: string | null;
+  } | null;
+}
+
+interface DashboardRecentPaymentRow {
+  id: number;
+  amount: number | string;
+  payment_date: string;
+  payment_method: string | null;
+  Students:
+    | {
+        Name: string | null;
+      }[]
+    | {
+        Name: string | null;
+      }
+    | null;
+}
 
 export interface DashboardData {
   stats: DashboardStats;
   birthdays: Student[];
-  recentPayments: any[];
+  recentPayments: DashboardRecentPayment[];
   recentEnquiries: Enquiry[];
+  urgentFeeDues: DashboardFeeDue[];
+}
+
+interface FeeDueDatabaseRow {
+  id: number;
+  student_id: number;
+  amount_due: number | string | null;
+  due_date: string;
+  status: string | null;
+  membership_plan: string | null;
+  reminder_count: number | null;
+}
+
+function getLocalDateString(
+  date: Date = new Date()
+): string {
+  const year = date.getFullYear();
+
+  const month = String(
+    date.getMonth() + 1
+  ).padStart(2, "0");
+
+  const day = String(
+    date.getDate()
+  ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function calculateFeeDueStatus(
+  dueDate: string,
+  existingStatus: string | null
+): "Due Today" | "Overdue" | null {
+  if (
+    existingStatus === "Paid" ||
+    existingStatus === "Waived" ||
+    existingStatus === "Cancelled"
+  ) {
+    return null;
+  }
+
+  const today = getLocalDateString();
+
+  if (dueDate < today) {
+    return "Overdue";
+  }
+
+  if (dueDate === today) {
+    return "Due Today";
+  }
+
+  return null;
 }
 
 class DashboardService {
@@ -22,6 +112,7 @@ class DashboardService {
       paymentsResult,
       birthdaysResult,
       recentPaymentsResult,
+      feeDuesResult,
     ] = await Promise.all([
       supabase
         .from("Students")
@@ -46,113 +137,361 @@ class DashboardService {
       supabase
         .from("Payments")
         .select(`
-          *,
+          id,
+          amount,
+          payment_date,
+          payment_method,
           Students(Name)
         `)
         .order("payment_date", {
           ascending: false,
         })
         .limit(5),
+
+      supabase
+        .from("fee_dues")
+        .select(`
+          id,
+          student_id,
+          amount_due,
+          due_date,
+          status,
+          membership_plan,
+          reminder_count
+        `)
+        .order("due_date", {
+          ascending: true,
+        }),
     ]);
 
-    if (studentsResult.error) throw studentsResult.error;
-    if (attendanceResult.error) throw attendanceResult.error;
-    if (enquiriesResult.error) throw enquiriesResult.error;
-    if (paymentsResult.error) throw paymentsResult.error;
-    if (birthdaysResult.error) throw birthdaysResult.error;
-    if (recentPaymentsResult.error)
+    if (studentsResult.error) {
+      throw studentsResult.error;
+    }
+
+    if (attendanceResult.error) {
+      throw attendanceResult.error;
+    }
+
+    if (enquiriesResult.error) {
+      throw enquiriesResult.error;
+    }
+
+    if (paymentsResult.error) {
+      throw paymentsResult.error;
+    }
+
+    if (birthdaysResult.error) {
+      throw birthdaysResult.error;
+    }
+
+    if (recentPaymentsResult.error) {
       throw recentPaymentsResult.error;
+    }
+
+    if (feeDuesResult.error) {
+      throw feeDuesResult.error;
+    }
 
     const students =
-      (studentsResult.data as Student[]) ?? [];
+      (studentsResult.data as Student[] | null) ??
+      [];
 
     const enquiries =
-      (enquiriesResult.data as Enquiry[]) ?? [];
+      (enquiriesResult.data as Enquiry[] | null) ??
+      [];
 
     const payments =
-      (paymentsResult.data as Payment[]) ?? [];
+      (paymentsResult.data as Payment[] | null) ??
+      [];
 
     const attendance =
       attendanceResult.data ?? [];
 
+    const feeDues =
+      (feeDuesResult.data as
+        | FeeDueDatabaseRow[]
+        | null) ?? [];
+
+    const recentPaymentRows =
+      (recentPaymentsResult.data as
+        | DashboardRecentPaymentRow[]
+        | null) ?? [];
+
+    const recentPayments: DashboardRecentPayment[] =
+      recentPaymentRows.map((payment) => {
+        const relatedStudent = Array.isArray(
+          payment.Students
+        )
+          ? payment.Students[0] ?? null
+          : payment.Students;
+
+        return {
+          id: Number(payment.id),
+
+          amount: Number(
+            payment.amount ?? 0
+          ),
+
+          payment_date:
+            payment.payment_date,
+
+          payment_method:
+            payment.payment_method,
+
+          Students: relatedStudent
+            ? {
+                Name:
+                  relatedStudent.Name ??
+                  null,
+              }
+            : null,
+        };
+      });
+
     const today = new Date();
 
     const todayString =
-      today.toISOString().split("T")[0];
+      getLocalDateString(today);
 
     const birthdays =
-      ((birthdaysResult.data as Student[]) ?? []).filter(
-        (student) => {
-          if (!student.date_of_birth) return false;
-
-          const dob = new Date(student.date_of_birth);
-
-          return (
-            dob.getDate() === today.getDate() &&
-            dob.getMonth() === today.getMonth()
-          );
+      (
+        (birthdaysResult.data as
+          | Student[]
+          | null) ?? []
+      ).filter((student) => {
+        if (!student.date_of_birth) {
+          return false;
         }
+
+        const dateParts =
+          student.date_of_birth
+            .split("-")
+            .map(Number);
+
+        if (dateParts.length !== 3) {
+          return false;
+        }
+
+        const [, month, day] =
+          dateParts;
+
+        return (
+          day === today.getDate() &&
+          month ===
+            today.getMonth() + 1
+        );
+      });
+
+    const currentMonth =
+      today.getMonth();
+
+    const currentYear =
+      today.getFullYear();
+
+    const activeFeeDues =
+      feeDues.filter((feeDue) => {
+        const status =
+          calculateFeeDueStatus(
+            feeDue.due_date,
+            feeDue.status
+          );
+
+        return status !== null;
+      });
+
+    const totalOutstanding =
+      activeFeeDues.reduce(
+        (total, feeDue) =>
+          total +
+          Number(
+            feeDue.amount_due ?? 0
+          ),
+        0
       );
 
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-
     const stats: DashboardStats = {
-      totalStudents: students.length,
+      totalStudents:
+        students.length,
 
-      activeStudents: students.filter(
-        (s) => s.Status === "Active"
-      ).length,
+      activeStudents:
+        students.filter(
+          (student) =>
+            student.Status === "Active"
+        ).length,
 
-      frozenStudents: students.filter(
-        (s) => s.membership_frozen
-      ).length,
+      frozenStudents:
+        students.filter(
+          (student) =>
+            student.membership_frozen
+        ).length,
 
-      newEnquiries: enquiries.filter(
-        (e) => e.Status === "New"
-      ).length,
+      newEnquiries:
+        enquiries.filter(
+          (enquiry) =>
+            enquiry.Status === "New"
+        ).length,
 
-      todayAttendance: attendance.filter(
-        (a) => a.date === todayString
-      ).length,
+      todayAttendance:
+        attendance.filter(
+          (record) =>
+            record.date === todayString
+        ).length,
 
-      monthRevenue: payments.reduce(
-        (sum, payment) => {
-          const paymentDate = new Date(
-            payment.payment_date
-          );
+      monthRevenue:
+        payments.reduce(
+          (total, payment) => {
+            const paymentDate =
+              new Date(
+                payment.payment_date
+              );
 
-          if (
-            paymentDate.getMonth() === currentMonth &&
-            paymentDate.getFullYear() === currentYear
-          ) {
-            return sum + Number(payment.amount);
-          }
+            if (
+              paymentDate.getMonth() ===
+                currentMonth &&
+              paymentDate.getFullYear() ===
+                currentYear
+            ) {
+              return (
+                total +
+                Number(payment.amount)
+              );
+            }
 
-          return sum;
-        },
-        0
-      ),
+            return total;
+          },
+          0
+        ),
 
-      feesDue: students.reduce(
-        (sum, student) =>
-          sum + Number(student.Fees_due ?? 0),
-        0
-      ),
+      feesDue:
+        totalOutstanding,
     };
+
+    const studentsById =
+      new Map<number, Student>();
+
+    students.forEach(
+      (student) => {
+        studentsById.set(
+          Number(student.id),
+          student
+        );
+      }
+    );
+
+    const urgentFeeDues:
+      DashboardFeeDue[] =
+        activeFeeDues
+          .map((feeDue) => {
+            const student =
+              studentsById.get(
+                Number(
+                  feeDue.student_id
+                )
+              );
+
+            const status =
+              calculateFeeDueStatus(
+                feeDue.due_date,
+                feeDue.status
+              );
+
+            if (!status) {
+              return null;
+            }
+
+            return {
+              id:
+                Number(feeDue.id),
+
+              student_id:
+                Number(
+                  feeDue.student_id
+                ),
+
+              student_name:
+                student?.Name?.trim() ||
+                `Student #${feeDue.student_id}`,
+
+              student_phone:
+                student?.Phone?.trim() ||
+                "",
+
+              amount_due:
+                Number(
+                  feeDue.amount_due ??
+                    0
+                ),
+
+              due_date:
+                feeDue.due_date,
+
+              status,
+
+              membership_plan:
+                feeDue.membership_plan?.trim() ||
+                student?.membership_plan?.trim() ||
+                student?.Program?.trim() ||
+                null,
+
+              reminder_count:
+                Number(
+                  feeDue.reminder_count ??
+                    0
+                ),
+            };
+          })
+          .filter(
+            (
+              feeDue
+            ): feeDue is DashboardFeeDue =>
+              feeDue !== null
+          )
+          .sort(
+            (first, second) => {
+              if (
+                first.status ===
+                  "Overdue" &&
+                second.status !==
+                  "Overdue"
+              ) {
+                return -1;
+              }
+
+              if (
+                second.status ===
+                  "Overdue" &&
+                first.status !==
+                  "Overdue"
+              ) {
+                return 1;
+              }
+
+              return first.due_date.localeCompare(
+                second.due_date
+              );
+            }
+          )
+          .slice(0, 6);
 
     return {
       stats,
       birthdays,
-      recentPayments:
-        recentPaymentsResult.data ?? [],
-      recentEnquiries: enquiries
-        .sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() -
-            new Date(a.created_at).getTime()
-        )
-        .slice(0, 5),
+      recentPayments,
+
+      recentEnquiries:
+        enquiries
+          .sort(
+            (first, second) =>
+              new Date(
+                second.created_at
+              ).getTime() -
+              new Date(
+                first.created_at
+              ).getTime()
+          )
+          .slice(0, 5),
+
+      urgentFeeDues,
     };
   }
 }
