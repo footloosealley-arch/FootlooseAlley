@@ -66,6 +66,7 @@ export type StudentFormData = {
 
 type StudentFormProps = {
   loading?: boolean;
+  studentId?: number | string | null;
   initialValues?: Partial<StudentFormData>;
   onSubmit: (
     values: StudentFormData
@@ -125,6 +126,7 @@ const defaultValues: StudentFormData = {
 
 export default function StudentForm({
   loading = false,
+  studentId,
   initialValues,
   onSubmit,
   onCancel,
@@ -199,17 +201,6 @@ export default function StudentForm({
       active = false;
     };
   }, []);
-
-  useEffect(() => {
-    if (!initialValues) {
-      return;
-    }
-
-    setForm({
-      ...defaultValues,
-      ...initialValues,
-    });
-  }, [initialValues]);
 
   const isValid = useMemo(() => {
     return (
@@ -304,6 +295,7 @@ export default function StudentForm({
     >
       <StudentPhotoUpload
         value={form.photoUrl}
+        studentId={studentId}
         onChange={(photoUrl) =>
           updateField("photoUrl", photoUrl)
         }
