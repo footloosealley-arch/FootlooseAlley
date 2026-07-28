@@ -91,6 +91,8 @@ export interface Payment {
 
   invoice_number: string | null;
 
+  receipt_number: string | null;
+
   payment_status: string | null;
 
   reference_number: string | null;

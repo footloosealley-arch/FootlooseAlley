@@ -75,6 +75,7 @@ export const paymentService = {
         remarks,
         received_by,
         invoice_number,
+        receipt_number,
         payment_status,
         reference_number,
         student:Students (
@@ -237,7 +238,7 @@ export const paymentService = {
 
   async createPayment(
     input: CreatePaymentInput
-  ): Promise<void> {
+  ): Promise<PaymentWithStudent> {
     if (!input.student_id) {
       throw new Error(
         "Please select a student."
@@ -274,7 +275,7 @@ export const paymentService = {
     const paymentStatus =
       input.payment_status?.trim() || "Paid";
 
-    const { error: paymentError } =
+    const { data: payment, error: paymentError } =
       await supabase
         .from("Payments")
         .insert({
@@ -293,7 +294,16 @@ export const paymentService = {
           payment_status: paymentStatus,
           reference_number:
             input.reference_number || null,
-        });
+        })
+        .select(`
+          id, created_at, student_id, amount, payment_date,
+          payment_method, remarks, received_by, invoice_number,
+          receipt_number, payment_status, reference_number,
+          student:Students (
+            id, Name, Phone, student_code, Program, Fees, Fees_due, fee_status
+          )
+        `)
+        .single();
 
     if (paymentError) {
       throw new Error(
@@ -303,7 +313,7 @@ export const paymentService = {
     }
 
     if (!isCompletedPayment(paymentStatus)) {
-      return;
+      return payment as unknown as PaymentWithStudent;
     }
 
     const currentDue = Math.max(
@@ -341,6 +351,8 @@ export const paymentService = {
         `Payment was recorded, but the student fee balance could not be updated: ${updateError.message}`
       );
     }
+
+    return payment as unknown as PaymentWithStudent;
   },
 
   async deletePayment(

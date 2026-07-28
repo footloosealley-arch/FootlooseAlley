@@ -14,6 +14,7 @@ import {
   CreditCard,
   Loader2,
   Plus,
+  Printer,
   ReceiptText,
   RefreshCw,
   Search,
@@ -24,6 +25,7 @@ import {
 
 import PageHeader from "@/components/layout/PageHeader";
 import PaymentMethodBreakdown from "@/components/payments/PaymentMethodBreakdown";
+import PaymentReceiptDialog from "@/components/payments/PaymentReceiptDialog";
 import { PaymentMethodBadge, PaymentStatusBadge } from "@/components/payments/PaymentBadges";
 
 import { paymentService } from "@/services/payment.service";
@@ -141,6 +143,7 @@ export default function PaymentsPage() {
   >(null);
 
   const [showForm, setShowForm] = useState(false);
+  const [receiptPayment, setReceiptPayment] = useState<PaymentWithStudent | null>(null);
 
   const [error, setError] = useState<
     string | null
@@ -180,7 +183,11 @@ export default function PaymentsPage() {
   }, []);
 
   useEffect(() => {
-    void loadData();
+    const loadTimer = window.setTimeout(() => {
+      void loadData();
+    }, 0);
+
+    return () => window.clearTimeout(loadTimer);
   }, [loadData]);
 
   const selectedStudent = useMemo(() => {
@@ -214,6 +221,10 @@ export default function PaymentsPage() {
         payment.invoice_number?.toLowerCase() ??
         "";
 
+      const receiptNumber =
+        payment.receipt_number?.toLowerCase() ??
+        "";
+
       const referenceNumber =
         payment.reference_number?.toLowerCase() ??
         "";
@@ -223,6 +234,7 @@ export default function PaymentsPage() {
         studentName.includes(normalizedSearch) ||
         studentPhone.includes(normalizedSearch) ||
         studentCode.includes(normalizedSearch) ||
+        receiptNumber.includes(normalizedSearch) ||
         invoiceNumber.includes(normalizedSearch) ||
         referenceNumber.includes(normalizedSearch);
 
@@ -337,7 +349,7 @@ export default function PaymentsPage() {
           form.remarks.trim() || null,
       };
 
-      await paymentService.createPayment(
+      const createdPayment = await paymentService.createPayment(
         payload
       );
 
@@ -346,6 +358,8 @@ export default function PaymentsPage() {
       );
 
       setForm(createInitialForm());
+
+      setReceiptPayment(createdPayment);
 
       await loadData();
     } catch (submitError) {
@@ -672,7 +686,7 @@ export default function PaymentsPage() {
                   />
                 </FormField>
 
-                <FormField label="Invoice Number">
+                <FormField label="External Invoice Number">
                   <input
                     type="text"
                     value={form.invoice_number}
@@ -682,7 +696,7 @@ export default function PaymentsPage() {
                         event.target.value
                       )
                     }
-                    placeholder="Optional invoice number"
+                    placeholder="Optional external invoice number"
                     className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                   />
                 </FormField>
@@ -814,7 +828,7 @@ export default function PaymentsPage() {
                     onChange={(event) =>
                       setSearch(event.target.value)
                     }
-                    placeholder="Search student or invoice..."
+                    placeholder="Search student, receipt or invoice..."
                     className="h-10 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 sm:w-72"
                   />
                 </div>
@@ -921,7 +935,7 @@ export default function PaymentsPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1050px] text-left text-sm">
+              <table className="w-full min-w-[1220px] text-left text-sm">
                 <thead className="border-b bg-muted/50">
                   <tr>
                     <th className="px-5 py-3 font-medium">
@@ -945,11 +959,15 @@ export default function PaymentsPage() {
                     </th>
 
                     <th className="px-5 py-3 font-medium">
+                      Receipt Number
+                    </th>
+
+                    <th className="px-5 py-3 font-medium">
                       Reference
                     </th>
 
                     <th className="px-5 py-3 font-medium">
-                      Invoice
+                      External Invoice
                     </th>
 
                     <th className="px-5 py-3 text-right font-medium">
@@ -1003,6 +1021,11 @@ export default function PaymentsPage() {
                         </td>
 
                         <td className="max-w-44 truncate px-5 py-4">
+                          {payment.receipt_number ||
+                            "—"}
+                        </td>
+
+                        <td className="max-w-44 truncate px-5 py-4">
                           {payment.reference_number ||
                             "—"}
                         </td>
@@ -1014,6 +1037,15 @@ export default function PaymentsPage() {
 
                         <td className="px-5 py-4 text-right">
                           <div className="inline-flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setReceiptPayment(payment)}
+                              className="inline-flex h-9 items-center justify-center rounded-lg border px-3 text-xs font-medium transition-colors hover:bg-muted"
+                              title="Open payment receipt"
+                            >
+                              <Printer className="mr-1.5 h-4 w-4" />
+                              Receipt
+                            </button>
                             {payment.student?.id && (
                               <a
                                 href={`/students/${payment.student.id}`}
@@ -1054,6 +1086,13 @@ export default function PaymentsPage() {
           )}
         </section>
       </div>
+      <PaymentReceiptDialog
+        payment={receiptPayment}
+        open={receiptPayment !== null}
+        onOpenChange={(open) => {
+          if (!open) setReceiptPayment(null);
+        }}
+      />
     </>
   );
 }
