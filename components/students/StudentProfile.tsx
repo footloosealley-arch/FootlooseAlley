@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
@@ -17,13 +16,13 @@ import {
   MessageCircle,
   Phone,
   ReceiptIndianRupee,
-  Snowflake,
   UserRound,
   UsersRound,
   WalletCards,
 } from "lucide-react";
 
 import MembershipEngine from "@/components/students/MembershipEngine";
+import PrivateStudentPhoto from "@/components/students/PrivateStudentPhoto";
 import type {
   StudentAttendanceRecord,
   StudentProfileData,
@@ -178,7 +177,6 @@ export default function StudentProfile({
     student,
     attendance,
     payments,
-    notes,
     memberships,
     membershipEvents,
   } = profile;
@@ -294,12 +292,11 @@ export default function StudentProfile({
         <div className="bg-gradient-to-br from-primary/15 via-background to-background p-6 sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
             {student.photo_url ? (
-              <Image
-                src={student.photo_url}
+              <PrivateStudentPhoto
+                path={student.photo_url}
                 alt={student.Name ?? "Student"}
-                width={120}
-                height={120}
                 className="h-28 w-28 rounded-3xl border-4 border-background object-cover shadow-md"
+                fallback={<div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-3xl bg-primary text-4xl font-bold text-primary-foreground shadow-md">{initials(student.Name)}</div>}
               />
             ) : (
               <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-3xl bg-primary text-4xl font-bold text-primary-foreground shadow-md">
