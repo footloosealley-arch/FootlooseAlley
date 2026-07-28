@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 
 const STUDENT_PHOTOS_BUCKET = "student-photos";
 const SIGNED_URL_LIFETIME_SECONDS = 300;
+const SIGNED_URL_REFRESH_MILLISECONDS = 4 * 60 * 1000;
 
 export function getStudentPhotoPath(value: string | null | undefined) {
   const candidate = value?.trim();
@@ -39,24 +40,36 @@ export function usePrivateStudentPhoto(value: string | null | undefined) {
 
   useEffect(() => {
     let active = true;
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 
     if (!path) {
       return () => { active = false; };
     }
 
-    void supabase.storage
-      .from(STUDENT_PHOTOS_BUCKET)
-      .createSignedUrl(path, SIGNED_URL_LIFETIME_SECONDS)
-      .then(({ data, error: signingError }) => {
-        if (!active) return;
-        if (signingError || !data?.signedUrl) {
-          setResult({ value, signedUrl: null, error: "Student photo is unavailable." });
-        } else {
-          setResult({ value, signedUrl: data.signedUrl, error: null });
-        }
-      });
+    async function signPhoto() {
+      const { data, error: signingError } = await supabase.storage
+        .from(STUDENT_PHOTOS_BUCKET)
+        .createSignedUrl(path as string, SIGNED_URL_LIFETIME_SECONDS);
 
-    return () => { active = false; };
+      if (!active) return;
+
+      if (signingError || !data?.signedUrl) {
+        setResult({ value, signedUrl: null, error: "Student photo is unavailable." });
+      } else {
+        setResult({ value, signedUrl: data.signedUrl, error: null });
+      }
+
+      refreshTimer = setTimeout(() => {
+        void signPhoto();
+      }, SIGNED_URL_REFRESH_MILLISECONDS);
+    }
+
+    void signPhoto();
+
+    return () => {
+      active = false;
+      if (refreshTimer) clearTimeout(refreshTimer);
+    };
   }, [path, value]);
 
   if (!path) {

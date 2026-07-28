@@ -21,7 +21,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import PrivateStudentPhoto, { getStudentPhotoPath } from "@/components/students/PrivateStudentPhoto";
+import PrivateStudentPhoto from "@/components/students/PrivateStudentPhoto";
 
 type StudentPhotoUploadProps = {
   value: string | null;
@@ -127,27 +127,7 @@ export default function StudentPhotoUpload({
         throw uploadError;
       }
 
-      const previousPhotoValue = value;
-
       onChange(filePath);
-
-      if (
-        previousPhotoValue &&
-        previousPhotoValue !== filePath
-      ) {
-        const previousPath =
-          getStudentPhotoPath(previousPhotoValue);
-
-        if (previousPath) {
-          const { error: cleanupError } = await supabase.storage
-            .from(STORAGE_BUCKET)
-            .remove([previousPath]);
-          if (cleanupError) {
-            console.warn("The new student photo was saved, but the previous file could not be removed:", cleanupError);
-            setError("The new photo was saved, but the previous file could not be removed.");
-          }
-        }
-      }
     } catch (uploadError) {
       console.error(
         "Student photo upload failed:",
@@ -168,7 +148,7 @@ export default function StudentPhotoUpload({
     }
   }
 
-  async function removePhoto() {
+  function removePhoto() {
     if (
       disabled ||
       uploading ||
@@ -177,39 +157,8 @@ export default function StudentPhotoUpload({
       return;
     }
 
-    setUploading(true);
     setError(null);
-
-    try {
-      const storagePath =
-        getStudentPhotoPath(value);
-
-      if (storagePath) {
-        const { error: removeError } =
-          await supabase.storage
-            .from(STORAGE_BUCKET)
-            .remove([storagePath]);
-
-        if (removeError) {
-          throw removeError;
-        }
-      }
-
-      onChange(null);
-    } catch (removeError) {
-      console.error(
-        "Student photo removal failed:",
-        removeError
-      );
-
-      setError(
-        removeError instanceof Error
-          ? removeError.message
-          : "Unable to remove the photo. Please try again."
-      );
-    } finally {
-      setUploading(false);
-    }
+    onChange(null);
   }
 
   function handleFileChange(
@@ -389,7 +338,7 @@ export default function StudentPhotoUpload({
                 type="button"
                 variant="destructive"
                 onClick={() =>
-                  void removePhoto()
+                  removePhoto()
                 }
                 disabled={
                   disabled || uploading
