@@ -1,0 +1,19 @@
+"use client";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { CalendarDays, CircleCheck, CircleOff, Plus, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+import ErrorCard from "@/components/common/ErrorCard"; import LoadingCard from "@/components/common/LoadingCard"; import PageHeader from "@/components/layout/PageHeader"; import StatCard from "@/components/ui-foundation/StatCard"; import { Button } from "@/components/ui/button";
+import { classesService, type ActiveInstructor, type ClassStatus, type StudioClass } from "@/services/classes.service";
+import ClassFilters from "./ClassFilters"; import ClassFormDialog from "./ClassFormDialog"; import ClassList from "./ClassList";
+export default function ClassesManagement() {
+ const [items,setItems]=useState<StudioClass[]>([]),[instructors,setInstructors]=useState<ActiveInstructor[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(""),[search,setSearch]=useState(""),[day,setDay]=useState("All"),[program,setProgram]=useState("All"),[status,setStatus]=useState("All"),[open,setOpen]=useState(false),[editing,setEditing]=useState<StudioClass|null>(null),[savingId,setSavingId]=useState<number|null>(null);
+ const load=useCallback(async()=>{setLoading(true);setError("");try{const [classes,active]=await Promise.all([classesService.getAll(),classesService.getActiveInstructors()]);setItems(classes);setInstructors(active)}catch(e){setError(e instanceof Error?e.message:"Unable to load classes.")}finally{setLoading(false)}},[]);
+ useEffect(()=>{
+   // Initial remote-data synchronization; state updates happen after the request resolves.
+   // eslint-disable-next-line react-hooks/set-state-in-effect
+   void load();
+ },[load]);
+ const programs=useMemo(()=>[...new Set(items.map(x=>x.program))].sort(),[items]); const filtered=useMemo(()=>items.filter(x=>(day==="All"||x.day===day)&&(program==="All"||x.program===program)&&(status==="All"||x.status===status)&&`${x.class_name} ${x.program} ${x.instructor?.name??"Unassigned"}`.toLowerCase().includes(search.trim().toLowerCase())),[items,day,program,status,search]);
+ async function changeStatus(item:StudioClass){const next:ClassStatus=item.status==="Active"?"Inactive":"Active";setSavingId(item.id);try{await classesService.setStatus(item.id,next);toast.success(`Class ${next.toLowerCase()}.`);await load()}catch(e){toast.error(e instanceof Error?e.message:"Unable to change class status.")}finally{setSavingId(null)}}
+ return <div className="space-y-6"><PageHeader title="Classes" description="Manage the studio schedule, instructors, and class availability." action={<Button type="button" onClick={()=>{setEditing(null);setOpen(true)}}><Plus /> Add class</Button>}/><div className="grid gap-4 sm:grid-cols-3"><StatCard label="Total classes" value={items.length} icon={CalendarDays}/><StatCard label="Active" value={items.filter(x=>x.status==="Active").length} icon={CircleCheck}/><StatCard label="Inactive" value={items.filter(x=>x.status!=="Active").length} icon={CircleOff}/></div><section className="rounded-2xl border bg-card shadow-sm"><ClassFilters search={search} day={day} program={program} status={status} programs={programs} onSearch={setSearch} onDay={setDay} onProgram={setProgram} onStatus={setStatus}/><div className="flex justify-end border-b px-4 py-2"><Button type="button" variant="ghost" size="sm" disabled={loading} onClick={()=>void load()}><RefreshCw className={loading?"animate-spin":""}/> Refresh</Button></div>{loading?<div className="p-5"><LoadingCard/></div>:error?<div className="p-5"><ErrorCard message={error} onRetry={()=>void load()}/></div>:<ClassList items={filtered} savingId={savingId} onEdit={item=>{setEditing(item);setOpen(true)}} onStatus={item=>void changeStatus(item)}/>}</section><ClassFormDialog open={open} classItem={editing} instructors={instructors} onOpenChange={setOpen} onSaved={()=>void load()}/></div>
+}
