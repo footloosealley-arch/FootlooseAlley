@@ -139,4 +139,22 @@ BEGIN
 END
 $$;
 
+CREATE OR REPLACE FUNCTION public.set_enquiries_updated_at()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS set_enquiries_updated_at
+  ON public."Enquiries";
+
+CREATE TRIGGER set_enquiries_updated_at
+BEFORE UPDATE ON public."Enquiries"
+FOR EACH ROW
+EXECUTE FUNCTION public.set_enquiries_updated_at();
+
 COMMIT;

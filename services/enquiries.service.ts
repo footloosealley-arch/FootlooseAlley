@@ -349,10 +349,10 @@ type CanonicalEnquiryRow = {
   Email: string | null;
   gender: EnquiryGender | null;
   age: number | null;
-  Program: string;
-  source: EnquirySource;
-  Status: string;
-  enquiry_date: string;
+  Program: string | null;
+  source: EnquirySource | null;
+  Status: string | null;
+  enquiry_date: string | null;
   Follow_up_date: string | null;
   trial_date: string | null;
   assigned_to: string | null;
@@ -360,7 +360,7 @@ type CanonicalEnquiryRow = {
   converted_student_id: number | null;
   converted_at: string | null;
   created_at: string;
-  updated_at: string;
+  updated_at: string | null;
 };
 
 const canonicalStatusByApplicationStatus: Record<EnquiryStatus, string> = {
@@ -388,10 +388,10 @@ function fromCanonicalEnquiry(row: CanonicalEnquiryRow): Enquiry {
     email: row.Email,
     gender: row.gender,
     age: row.age,
-    interested_in: row.Program,
-    source: row.source,
-    status: toApplicationStatus(row.Status),
-    enquiry_date: row.enquiry_date,
+    interested_in: row.Program ?? "",
+    source: row.source ?? "Other",
+    status: toApplicationStatus(row.Status ?? "New"),
+    enquiry_date: row.enquiry_date ?? row.created_at.slice(0, 10),
     follow_up_date: row.Follow_up_date,
     trial_date: row.trial_date,
     assigned_to: row.assigned_to,
@@ -399,7 +399,7 @@ function fromCanonicalEnquiry(row: CanonicalEnquiryRow): Enquiry {
     converted_student_id: row.converted_student_id,
     converted_at: row.converted_at,
     created_at: row.created_at,
-    updated_at: row.updated_at,
+    updated_at: row.updated_at ?? row.created_at,
   };
 }
 
