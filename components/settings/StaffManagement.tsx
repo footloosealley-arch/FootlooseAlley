@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Copy,
+  ExternalLink,
   LoaderCircle,
   RefreshCw,
   ShieldCheck,
@@ -15,6 +16,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useAuth, type AppRole } from "@/components/auth/AuthProvider";
 import { supabase } from "@/lib/supabase";
+import { env } from "@/lib/env";
 
 interface StaffProfile {
   id: string;
@@ -31,6 +33,22 @@ function formatDate(value: string): string {
     month: "short",
     year: "numeric",
   }).format(new Date(value));
+}
+
+function getSupabaseUsersUrl(): string | null {
+  try {
+    const hostname = new URL(env.supabaseUrl).hostname;
+    const suffix = ".supabase.co";
+
+    if (!hostname.endsWith(suffix)) return null;
+
+    const projectRef = hostname.slice(0, -suffix.length);
+    if (!/^[a-z0-9]{20}$/.test(projectRef)) return null;
+
+    return `https://supabase.com/dashboard/project/${projectRef}/auth/users`;
+  } catch {
+    return null;
+  }
 }
 
 export default function StaffManagement() {
@@ -61,7 +79,8 @@ export default function StaffManagement() {
   }, [profile?.role]);
 
   useEffect(() => {
-    void loadStaff();
+    const timeoutId = window.setTimeout(() => void loadStaff(), 0);
+    return () => window.clearTimeout(timeoutId);
   }, [loadStaff]);
 
   const summary = useMemo(
@@ -112,9 +131,19 @@ export default function StaffManagement() {
     setSavingId(null);
   }
 
-  async function copySignupLink() {
+  function openSupabaseUsers() {
+    const usersUrl = getSupabaseUsersUrl();
+    if (!usersUrl) {
+      toast.error("Could not determine the Supabase project from the configured URL.");
+      return;
+    }
+
+    window.open(usersUrl, "_blank", "noopener,noreferrer");
+  }
+
+  async function copyLoginLink() {
     await navigator.clipboard.writeText(`${window.location.origin}/login`);
-    toast.success("Staff signup link copied.");
+    toast.success("Staff login link copied.");
   }
 
   if (profile?.role !== "admin") {
@@ -145,9 +174,13 @@ export default function StaffManagement() {
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
-          <Button onClick={() => void copySignupLink()}>
+          <Button variant="outline" onClick={openSupabaseUsers}>
+            <ExternalLink className="h-4 w-4" />
+            Open Supabase Users
+          </Button>
+          <Button onClick={() => void copyLoginLink()}>
             <Copy className="h-4 w-4" />
-            Copy Staff Signup Link
+            Copy Staff Login Link
           </Button>
         </div>
       </div>
@@ -176,13 +209,15 @@ export default function StaffManagement() {
         })}
       </div>
 
-      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-        <p className="font-semibold">Adding a receptionist</p>
-        <p className="mt-1">
-          Send the staff signup link. After they create and confirm their account, it
-          appears below with receptionist access. You can then change their role or
-          deactivate access.
-        </p>
+      <div className="rounded-2xl border bg-muted/40 p-5 text-sm">
+        <p className="font-semibold">Add a staff member securely</p>
+        <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
+          <li>Open Supabase Users.</li>
+          <li>Add or invite the staff user.</li>
+          <li>The existing database trigger creates their receptionist profile.</li>
+          <li>Return to Settings and click Refresh.</li>
+          <li>Promote them to Administrator only when required.</li>
+        </ol>
       </div>
 
       <div className="overflow-hidden rounded-2xl border bg-background shadow-sm">
@@ -197,6 +232,15 @@ export default function StaffManagement() {
           <div className="flex items-center justify-center gap-2 p-12 text-sm text-muted-foreground">
             <LoaderCircle className="h-5 w-5 animate-spin" />
             Loading staff accounts...
+          </div>
+        ) : staff.length === 0 ? (
+          <div className="p-12 text-center">
+            <Users className="mx-auto h-9 w-9 text-muted-foreground" />
+            <p className="mt-3 font-semibold">No staff records found</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Add or invite a user in Supabase Authentication, then return here and
+              click Refresh.
+            </p>
           </div>
         ) : (
           <div className="divide-y">
