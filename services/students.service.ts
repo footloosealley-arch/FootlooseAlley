@@ -493,7 +493,7 @@ class StudentsService {
 
     const { data, error } =
       await supabase
-        .from("payments")
+        .from("Payments")
         .select("*")
         .eq(
           "student_id",

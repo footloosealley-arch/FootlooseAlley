@@ -77,7 +77,7 @@ export interface Payment {
 
   created_at: string;
 
-  student_id: number;
+  student_id: number | null;
 
   amount: number;
 

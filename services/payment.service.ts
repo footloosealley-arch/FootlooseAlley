@@ -64,7 +64,7 @@ export const paymentService = {
     PaymentWithStudent[]
   > {
     const { data, error } = await supabase
-      .from("payments")
+      .from("Payments")
       .select(`
         id,
         created_at,
@@ -135,7 +135,7 @@ export const paymentService = {
       pendingStudentsResult,
     ] = await Promise.all([
       supabase
-        .from("payments")
+        .from("Payments")
         .select(
           "amount, payment_date, payment_status"
         ),
@@ -276,7 +276,7 @@ export const paymentService = {
 
     const { error: paymentError } =
       await supabase
-        .from("payments")
+        .from("Payments")
         .insert({
           student_id: input.student_id,
           amount: input.amount,
@@ -347,7 +347,7 @@ export const paymentService = {
     paymentId: number
   ): Promise<void> {
     const { error } = await supabase
-      .from("payments")
+      .from("Payments")
       .delete()
       .eq("id", paymentId);
 
