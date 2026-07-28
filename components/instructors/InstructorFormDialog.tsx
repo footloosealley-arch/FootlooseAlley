@@ -15,6 +15,13 @@ export default function InstructorFormDialog({ open, instructor, onOpenChange, o
   const [form, setForm] = useState({ name: instructor?.name ?? "", phone: instructor?.phone ?? "", specialization: instructor?.specialization ?? "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      setForm({ name: instructor?.name ?? "", phone: instructor?.phone ?? "", specialization: instructor?.specialization ?? "" });
+      setErrors({});
+    }
+    onOpenChange(nextOpen);
+  }
   async function submit(event: FormEvent) {
     event.preventDefault();
     const next: Record<string, string> = {};
@@ -28,19 +35,19 @@ export default function InstructorFormDialog({ open, instructor, onOpenChange, o
       if (instructor) await instructorsService.update(instructor.id, { ...form, status: instructor.status });
       else await instructorsService.create(form);
       toast.success(instructor ? "Instructor updated." : "Instructor added.");
-      onOpenChange(false); onSaved();
+      handleOpenChange(false); onSaved();
     } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to save instructor."); }
     finally { setSaving(false); }
   }
 
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent>
+  return <Dialog open={open} onOpenChange={handleOpenChange}><DialogContent>
     <DialogHeader><DialogTitle>{instructor ? "Edit instructor" : "Add instructor"}</DialogTitle><DialogDescription>Enter the instructor&apos;s contact and teaching details.</DialogDescription></DialogHeader>
     <form className="space-y-4" onSubmit={submit} noValidate>
       {([ ["name", "Name", "e.g. Ananya Shah"], ["phone", "Phone", "+91 98765 43210"], ["specialization", "Specialization", "e.g. Contemporary"] ] as const).map(([key, label, placeholder]) => <div className="space-y-2" key={key}>
         <Label htmlFor={`instructor-${key}`}>{label}</Label><Input id={`instructor-${key}`} value={form[key]} placeholder={placeholder} aria-invalid={Boolean(errors[key])} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />
         {errors[key] && <p className="text-sm text-destructive">{errors[key]}</p>}
       </div>)}
-      <div className="flex justify-end gap-2 pt-2"><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button disabled={saving}>{saving && <LoaderCircle className="animate-spin" />}{instructor ? "Save changes" : "Add instructor"}</Button></div>
+      <div className="flex justify-end gap-2 pt-2"><Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button><Button type="submit" disabled={saving}>{saving && <LoaderCircle className="animate-spin" />}{instructor ? "Save changes" : "Add instructor"}</Button></div>
     </form>
   </DialogContent></Dialog>;
 }
