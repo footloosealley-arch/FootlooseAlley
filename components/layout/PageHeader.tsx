@@ -1,4 +1,5 @@
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
+import FoundationPageHeader from "@/components/ui-foundation/PageHeader";
 
 interface Props {
   title: string;
@@ -6,26 +7,13 @@ interface Props {
   action?: ReactNode;
 }
 
-export default function PageHeader({
-  title,
-  description,
-  action,
-}: Props) {
+export default function PageHeader({ title, description, action }: Props) {
   return (
-    <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          {title}
-        </h1>
-
-        {description && (
-          <p className="mt-1 text-muted-foreground">
-            {description}
-          </p>
-        )}
-      </div>
-
-      {action}
-    </div>
+    <FoundationPageHeader
+      title={title}
+      description={description}
+      actions={action}
+      className="mb-8"
+    />
   );
 }

@@ -1,13 +1,10 @@
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
+import FoundationSectionCard from "@/components/ui-foundation/SectionCard";
 
 interface Props {
   children: ReactNode;
 }
 
 export default function SectionCard({ children }: Props) {
-  return (
-    <div className="rounded-xl border bg-card p-6 shadow-sm">
-      {children}
-    </div>
-  );
+  return <FoundationSectionCard>{children}</FoundationSectionCard>;
 }

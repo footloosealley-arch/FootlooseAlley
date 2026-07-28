@@ -162,6 +162,9 @@ export default function StudentProfilePage() {
   return (
     <StudentProfile
       profile={data}
+      onRefresh={async () => {
+        await refresh();
+      }}
     />
   );
 }

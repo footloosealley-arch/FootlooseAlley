@@ -1,117 +1,42 @@
 import { supabase } from "@/lib/supabase";
 
-export const ENQUIRY_STATUSES = [
-  "New",
-  "Contacted",
-  "Follow-up",
-  "Trial Scheduled",
-  "Trial Completed",
-  "Joined",
-  "Not Interested",
-] as const;
+import {
+  ENQUIRY_GENDERS,
+  ENQUIRY_SOURCES,
+  ENQUIRY_STATUSES,
+} from "@/types/enquiry";
 
-export const ENQUIRY_SOURCES = [
-  "Instagram",
-  "Facebook",
-  "Google",
-  "Walk-in",
-  "Referral",
-  "WhatsApp",
-  "Existing Student",
-  "Other",
-] as const;
+import type {
+  CreateEnquiryInput,
+  Enquiry,
+  EnquiryFilters,
+  EnquiryGender,
+  EnquirySource,
+  EnquiryStatus,
+  EnquirySummary,
+  UpdateEnquiryInput,
+} from "@/types/enquiry";
 
-export const ENQUIRY_GENDERS = [
-  "Male",
-  "Female",
-  "Other",
-  "Prefer not to say",
-] as const;
+export {
+  ENQUIRY_GENDERS,
+  ENQUIRY_SOURCES,
+  ENQUIRY_STATUSES,
+};
 
-export type EnquiryStatus =
-  (typeof ENQUIRY_STATUSES)[number];
+export type {
+  CreateEnquiryInput,
+  Enquiry,
+  EnquiryFilters,
+  EnquiryGender,
+  EnquirySource,
+  EnquiryStatus,
+  EnquirySummary,
+  UpdateEnquiryInput,
+};
 
-export type EnquirySource =
-  (typeof ENQUIRY_SOURCES)[number];
-
-export type EnquiryGender =
-  (typeof ENQUIRY_GENDERS)[number];
-
-export interface Enquiry {
-  id: number;
-  name: string;
-  phone: string;
-  email: string | null;
-  gender: EnquiryGender | null;
-  age: number | null;
-  interested_in: string;
-  source: EnquirySource;
-  status: EnquiryStatus;
-  enquiry_date: string;
-  follow_up_date: string | null;
-  trial_date: string | null;
-  assigned_to: string | null;
-  notes: string | null;
-  converted_student_id: number | null;
-  converted_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateEnquiryInput {
-  name: string;
-  phone: string;
-  email?: string | null;
-  gender?: EnquiryGender | null;
-  age?: number | null;
-  interested_in: string;
-  source?: EnquirySource;
-  status?: EnquiryStatus;
-  enquiry_date?: string;
-  follow_up_date?: string | null;
-  trial_date?: string | null;
-  assigned_to?: string | null;
-  notes?: string | null;
-}
-
-export interface UpdateEnquiryInput {
-  name?: string;
-  phone?: string;
-  email?: string | null;
-  gender?: EnquiryGender | null;
-  age?: number | null;
-  interested_in?: string;
-  source?: EnquirySource;
-  status?: EnquiryStatus;
-  enquiry_date?: string;
-  follow_up_date?: string | null;
-  trial_date?: string | null;
-  assigned_to?: string | null;
-  notes?: string | null;
-  converted_student_id?: number | null;
-  converted_at?: string | null;
-}
-
-export interface EnquiryFilters {
-  search?: string;
-  status?: EnquiryStatus | "All";
-  source?: EnquirySource | "All";
-  followUp?: "All" | "Today" | "Overdue" | "Upcoming";
-}
-
-export interface EnquirySummary {
-  total: number;
-  new: number;
-  contacted: number;
-  followUpsToday: number;
-  overdueFollowUps: number;
-  trialsScheduled: number;
-  joined: number;
-  notInterested: number;
-  conversionRate: number;
-}
-
-function getLocalDateString(date = new Date()): string {
+function getLocalDateString(
+  date = new Date()
+): string {
   const year = date.getFullYear();
 
   const month = String(
@@ -204,7 +129,7 @@ function validateAge(
 
 function normaliseCreateInput(
   input: CreateEnquiryInput
-) {
+): CreateEnquiryInput {
   return {
     name: cleanRequiredText(
       input.name,
@@ -417,6 +342,16 @@ function throwSupabaseError(
   }
 }
 
+function isActiveEnquiry(
+  enquiry: Enquiry
+): boolean {
+  return (
+    enquiry.status !== "Joined" &&
+    enquiry.status !==
+      "Not Interested"
+  );
+}
+
 export const enquiriesService = {
   async getEnquiries():
     Promise<Enquiry[]> {
@@ -620,6 +555,18 @@ export const enquiriesService = {
     );
   },
 
+  async markFollowedUp(
+    id: number
+  ): Promise<Enquiry> {
+    return this.updateEnquiry(
+      id,
+      {
+        status: "Contacted",
+        follow_up_date: null,
+      }
+    );
+  },
+
   calculateSummary(
     enquiries: Enquiry[]
   ): EnquirySummary {
@@ -632,8 +579,7 @@ export const enquiriesService = {
     const newCount =
       enquiries.filter(
         (enquiry) =>
-          enquiry.status ===
-          "New"
+          enquiry.status === "New"
       ).length;
 
     const contacted =
@@ -648,10 +594,7 @@ export const enquiriesService = {
         (enquiry) =>
           enquiry.follow_up_date ===
             today &&
-          enquiry.status !==
-            "Joined" &&
-          enquiry.status !==
-            "Not Interested"
+          isActiveEnquiry(enquiry)
       ).length;
 
     const overdueFollowUps =
@@ -662,10 +605,7 @@ export const enquiriesService = {
           ) &&
           enquiry.follow_up_date! <
             today &&
-          enquiry.status !==
-            "Joined" &&
-          enquiry.status !==
-            "Not Interested"
+          isActiveEnquiry(enquiry)
       ).length;
 
     const trialsScheduled =
@@ -770,7 +710,8 @@ export const enquiriesService = {
           ) {
             matchesFollowUp =
               enquiry.follow_up_date ===
-              today;
+                today &&
+              isActiveEnquiry(enquiry);
           }
 
           if (
@@ -783,10 +724,7 @@ export const enquiriesService = {
               ) &&
               enquiry.follow_up_date! <
                 today &&
-              enquiry.status !==
-                "Joined" &&
-              enquiry.status !==
-                "Not Interested";
+              isActiveEnquiry(enquiry);
           }
 
           if (
@@ -798,7 +736,8 @@ export const enquiriesService = {
                 enquiry.follow_up_date
               ) &&
               enquiry.follow_up_date! >
-                today;
+                today &&
+              isActiveEnquiry(enquiry);
           }
         }
 
@@ -823,8 +762,7 @@ export const enquiriesService = {
       );
 
     if (
-      cleanNumber.length ===
-      10
+      cleanNumber.length === 10
     ) {
       cleanNumber =
         `91${cleanNumber}`;
@@ -857,7 +795,8 @@ export const enquiriesService = {
   ): boolean {
     return (
       enquiry.follow_up_date ===
-      getLocalDateString()
+        getLocalDateString() &&
+      isActiveEnquiry(enquiry)
     );
   },
 
@@ -866,16 +805,29 @@ export const enquiriesService = {
   ): boolean {
     if (
       !enquiry.follow_up_date ||
-      enquiry.status ===
-        "Joined" ||
-      enquiry.status ===
-        "Not Interested"
+      !isActiveEnquiry(enquiry)
     ) {
       return false;
     }
 
     return (
       enquiry.follow_up_date <
+      getLocalDateString()
+    );
+  },
+
+  isFollowUpUpcoming(
+    enquiry: Enquiry
+  ): boolean {
+    if (
+      !enquiry.follow_up_date ||
+      !isActiveEnquiry(enquiry)
+    ) {
+      return false;
+    }
+
+    return (
+      enquiry.follow_up_date >
       getLocalDateString()
     );
   },

@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 
 import PageHeader from "@/components/layout/PageHeader";
+import PaymentMethodBreakdown from "@/components/payments/PaymentMethodBreakdown";
+import { PaymentMethodBadge, PaymentStatusBadge } from "@/components/payments/PaymentBadges";
 
 import { paymentService } from "@/services/payment.service";
 
@@ -48,6 +50,7 @@ interface PaymentFormState {
 const initialSummary: PaymentSummary = {
   totalCollected: 0,
   monthCollected: 0,
+  weekCollected: 0,
   todayCollected: 0,
   pendingAmount: 0,
   paymentCount: 0,
@@ -108,36 +111,6 @@ function formatDate(value: string | null) {
   }).format(date);
 }
 
-function getStatusClass(status: string | null) {
-  const normalized = status
-    ?.trim()
-    .toLowerCase();
-
-  if (
-    normalized === "paid" ||
-    normalized === "completed" ||
-    normalized === "success"
-  ) {
-    return "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300";
-  }
-
-  if (
-    normalized === "pending" ||
-    normalized === "partial"
-  ) {
-    return "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
-  }
-
-  if (
-    normalized === "failed" ||
-    normalized === "cancelled"
-  ) {
-    return "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300";
-  }
-
-  return "bg-muted text-muted-foreground";
-}
-
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<
     PaymentWithStudent[]
@@ -157,6 +130,8 @@ export default function PaymentsPage() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] =
+    useState("All");
+  const [methodFilter, setMethodFilter] =
     useState("All");
 
   const [loading, setLoading] = useState(true);
@@ -260,9 +235,27 @@ export default function PaymentsPage() {
         paymentStatus.toLowerCase() ===
           statusFilter.toLowerCase();
 
-      return matchesSearch && matchesStatus;
+      const paymentMethod =
+        payment.payment_method?.trim() ||
+        "Other";
+
+      const matchesMethod =
+        methodFilter === "All" ||
+        paymentMethod.toLowerCase() ===
+          methodFilter.toLowerCase();
+
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesMethod
+      );
     });
-  }, [payments, search, statusFilter]);
+  }, [
+    payments,
+    search,
+    statusFilter,
+    methodFilter,
+  ]);
 
   function updateForm(
     field: keyof PaymentFormState,
@@ -462,43 +455,47 @@ export default function PaymentsPage() {
           </div>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <SummaryCard
             title="Collected Today"
-            value={formatCurrency(
-              summary.todayCollected
-            )}
+            value={formatCurrency(summary.todayCollected)}
             description="Payments received today"
             icon={WalletCards}
           />
 
           <SummaryCard
+            title="This Week"
+            value={formatCurrency(summary.weekCollected)}
+            description="Collection since Monday"
+            icon={CalendarDays}
+          />
+
+          <SummaryCard
             title="This Month"
-            value={formatCurrency(
-              summary.monthCollected
-            )}
+            value={formatCurrency(summary.monthCollected)}
             description="Total monthly collection"
             icon={CalendarDays}
           />
 
           <SummaryCard
             title="Total Collected"
-            value={formatCurrency(
-              summary.totalCollected
-            )}
+            value={formatCurrency(summary.totalCollected)}
             description={`${summary.paymentCount} completed payments`}
             icon={BadgeIndianRupee}
           />
 
           <SummaryCard
             title="Fees Pending"
-            value={formatCurrency(
-              summary.pendingAmount
-            )}
+            value={formatCurrency(summary.pendingAmount)}
             description="Outstanding student fees"
             icon={CreditCard}
           />
         </div>
+
+        <PaymentMethodBreakdown
+          payments={payments}
+          formatCurrency={formatCurrency}
+        />
 
         {showForm && (
           <section className="rounded-xl border bg-card p-5 shadow-sm">
@@ -801,10 +798,8 @@ export default function PaymentsPage() {
                 </h2>
 
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {filteredPayments.length} payment
-                  {filteredPayments.length === 1
-                    ? ""
-                    : "s"}{" "}
+                  {filteredPayments.length} of {payments.length} payment
+                  {payments.length === 1 ? "" : "s"}{" "}
                   found
                 </p>
               </div>
@@ -853,6 +848,49 @@ export default function PaymentsPage() {
                     Cancelled
                   </option>
                 </select>
+
+                <select
+                  value={methodFilter}
+                  onChange={(event) =>
+                    setMethodFilter(
+                      event.target.value
+                    )
+                  }
+                  className="h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="All">
+                    All Methods
+                  </option>
+                  <option value="Cash">Cash</option>
+                  <option value="UPI">UPI</option>
+                  <option value="Card">Card</option>
+                  <option value="Bank Transfer">
+                    Bank Transfer
+                  </option>
+                  <option value="Cheque">
+                    Cheque
+                  </option>
+                  <option value="Other">
+                    Other
+                  </option>
+                </select>
+
+                {(search ||
+                  statusFilter !== "All" ||
+                  methodFilter !== "All") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch("");
+                      setStatusFilter("All");
+                      setMethodFilter("All");
+                    }}
+                    className="inline-flex h-10 items-center justify-center rounded-lg border border-input bg-background px-3 text-sm font-medium transition-colors hover:bg-muted"
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    Clear filters
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -957,19 +995,11 @@ export default function PaymentsPage() {
                         </td>
 
                         <td className="whitespace-nowrap px-5 py-4">
-                          {payment.payment_method ||
-                            "—"}
+                          <PaymentMethodBadge method={payment.payment_method} />
                         </td>
 
                         <td className="px-5 py-4">
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClass(
-                              payment.payment_status
-                            )}`}
-                          >
-                            {payment.payment_status ||
-                              "Paid"}
-                          </span>
+                          <PaymentStatusBadge status={payment.payment_status} />
                         </td>
 
                         <td className="max-w-44 truncate px-5 py-4">
@@ -983,6 +1013,15 @@ export default function PaymentsPage() {
                         </td>
 
                         <td className="px-5 py-4 text-right">
+                          <div className="inline-flex items-center gap-1">
+                            {payment.student?.id && (
+                              <a
+                                href={`/students/${payment.student.id}`}
+                                className="inline-flex h-9 items-center justify-center rounded-lg border px-3 text-xs font-medium transition-colors hover:bg-muted"
+                              >
+                                View Student
+                              </a>
+                            )}
                           <button
                             type="button"
                             onClick={() =>
@@ -1004,6 +1043,7 @@ export default function PaymentsPage() {
                               <Trash2 className="h-4 w-4" />
                             )}
                           </button>
+                          </div>
                         </td>
                       </tr>
                     )
