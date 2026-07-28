@@ -1,184 +1,192 @@
 "use client";
 
-import {
-  useParams,
-  usePathname,
-  useRouter,
-} from "next/navigation";
+import { useMemo, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import ErrorCard from "@/components/common/ErrorCard";
 import LoadingCard from "@/components/common/LoadingCard";
-import StudentProfile from "@/components/students/StudentProfile";
-import StudentProfileActions from "@/components/students/StudentProfileActions";
-
+import StudentForm, {
+  type StudentFormData,
+} from "@/components/students/StudentForm";
 import { useAsync } from "@/hooks/useAsync";
 import { studentsService } from "@/services/students.service";
+import type { Student } from "@/types/database";
 
-function getStudentId(
-  parameterValue:
-    | string
-    | string[]
-    | undefined,
-  pathname: string
-): number | null {
-  let rawId: string | undefined;
+function parseStudentId(value: string | string[] | undefined) {
+  const rawId = Array.isArray(value) ? value[0] : value;
+  const id = Number(rawId);
 
-  if (
-    typeof parameterValue ===
-    "string"
-  ) {
-    rawId = parameterValue;
-  } else if (
-    Array.isArray(
-      parameterValue
-    )
-  ) {
-    rawId =
-      parameterValue[0];
-  }
-
-  if (!rawId) {
-    const pathParts =
-      pathname
-        .split("/")
-        .filter(Boolean);
-
-    const studentsIndex =
-      pathParts.indexOf(
-        "students"
-      );
-
-    if (
-      studentsIndex >= 0 &&
-      pathParts[
-        studentsIndex + 1
-      ]
-    ) {
-      rawId =
-        pathParts[
-          studentsIndex + 1
-        ];
-    }
-  }
-
-  const parsedId =
-    Number(rawId);
-
-  if (
-    !Number.isInteger(
-      parsedId
-    ) ||
-    parsedId <= 0
-  ) {
-    return null;
-  }
-
-  return parsedId;
+  return Number.isInteger(id) && id > 0 ? id : null;
 }
 
-export default function StudentProfilePage() {
-  const params =
-    useParams();
+function dateValue(value: string | null) {
+  return value ? value.slice(0, 10) : "";
+}
 
-  const pathname =
-    usePathname();
+function mapInitialValues(student: Student): StudentFormData {
+  return {
+    name: student.Name ?? "",
+    phone: student.Phone ?? "",
+    email: student.Email ?? "",
+    photoUrl: student.photo_url,
+    gender: student.gender ?? "",
+    dateOfBirth: dateValue(student.date_of_birth),
+    address: student.Address ?? "",
+    emergencyContact: student.Emergency_contact ?? "",
+    whatsappEnabled: student.whatsapp_enabled ?? false,
+    program: student.Program ?? "",
+    classId: student.class_id,
+    instructorId: student.instructor_id,
+    membershipPlan: student.membership_plan ?? "Monthly",
+    fees: student.Fees ?? 0,
+    discount: student.membership_discount ?? 0,
+    feesDue: student.Fees_due ?? 0,
+    joinDate: dateValue(student.join_date),
+    nextDueDate: dateValue(student.next_due_date),
+    medicalNotes: student.medical_notes ?? "",
+    notes: student.notes ?? "",
+  };
+}
 
-  const router =
-    useRouter();
+function createUpdatePayload(values: StudentFormData): Partial<Student> {
+  const feeStatus = values.feesDue <= 0
+    ? "Paid"
+    : values.feesDue < values.fees
+      ? "Partial"
+      : "Due";
 
-  const studentId =
-    getStudentId(
-      params?.id as
-        | string
-        | string[]
-        | undefined,
-      pathname
-    );
+  return {
+    Name: values.name.trim(),
+    Phone: values.phone.trim(),
+    Email: values.email.trim() || null,
+    photo_url: values.photoUrl,
+    gender: values.gender || null,
+    date_of_birth: values.dateOfBirth || null,
+    Address: values.address.trim() || null,
+    Emergency_contact: values.emergencyContact.trim() || null,
+    whatsapp_enabled: values.whatsappEnabled,
+    Program: values.program || null,
+    class_id: values.classId,
+    instructor_id: values.instructorId,
+    membership_plan: values.membershipPlan || null,
+    Fees: values.fees,
+    membership_discount: values.discount,
+    Fees_due: values.feesDue,
+    fee_status: feeStatus,
+    join_date: values.joinDate || null,
+    next_due_date: values.nextDueDate || null,
+    medical_notes: values.medicalNotes.trim() || null,
+    notes: values.notes.trim() || null,
+  };
+}
 
-  const {
-    data,
-    loading,
-    error,
-    refresh,
-  } = useAsync(
-    async () => {
-      if (!studentId) {
-        throw new Error(
-          "Invalid student ID."
-        );
-      }
+export default function EditStudentPage() {
+  const params = useParams();
+  const router = useRouter();
+  const studentId = parseStudentId(params?.id as string | string[] | undefined);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const submissionInProgress = useRef(false);
 
-      return studentsService.getStudentProfile(
-        studentId
-      );
-    },
+  const { data: student, loading, error, refresh } = useAsync(
+    () => studentId
+      ? studentsService.getStudentById(studentId)
+      : Promise.resolve(null),
     [studentId]
   );
 
-  async function handleRefresh() {
-    await refresh();
+  const initialValues = useMemo(
+    () => student ? mapInitialValues(student) : undefined,
+    [student]
+  );
+
+  async function handleSubmit(values: StudentFormData) {
+    if (!studentId || submissionInProgress.current) return;
+
+    submissionInProgress.current = true;
+    setSaving(true);
+    setSaveError(null);
+
+    try {
+      const phone = values.phone.trim();
+      const phoneExists = await studentsService.studentExists(phone, studentId);
+
+      if (phoneExists) {
+        setSaveError("A different student already uses this phone number.");
+        return;
+      }
+
+      await studentsService.updateStudent(studentId, createUpdatePayload(values));
+      toast.success("Student details updated successfully.");
+      router.push(`/students/${studentId}`);
+      router.refresh();
+    } catch (submitError) {
+      console.error("Failed to update student:", submitError);
+      setSaveError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Unable to save the student. Please try again."
+      );
+    } finally {
+      submissionInProgress.current = false;
+      setSaving(false);
+    }
   }
 
-  if (loading) {
-    return (
-      <LoadingCard title="Loading Student Profile..." />
-    );
-  }
-
-  if (error) {
+  if (!studentId) {
     return (
       <ErrorCard
-        title="Unable to load student profile"
-        message={
-          error.message
-        }
-        onRetry={() => {
-          void refresh();
-        }}
+        title="Invalid student ID"
+        message="The student link is invalid. Return to the students list and try again."
       />
     );
   }
 
-  if (!data) {
+  if (loading) return <LoadingCard title="Loading Student..." />;
+
+  if (error) {
     return (
-      <div className="rounded-xl border bg-background p-8 text-center shadow-sm">
-        <h1 className="text-xl font-semibold">
-          Student Not Found
-        </h1>
+      <ErrorCard
+        title="Unable to load student"
+        message={error.message}
+        onRetry={() => void refresh()}
+      />
+    );
+  }
 
-        <p className="mt-2 text-sm text-muted-foreground">
-          This student may have been removed or the link may be incorrect.
-        </p>
-
-        <button
-          type="button"
-          onClick={() =>
-            router.push(
-              "/students"
-            )
-          }
-          className="mt-5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-        >
-          Return to Students
-        </button>
-      </div>
+  if (!student) {
+    return (
+      <ErrorCard
+        title="Student Not Found"
+        message="This student may have been removed or the link may be incorrect."
+      />
     );
   }
 
   return (
     <div className="space-y-6">
-      <StudentProfileActions
-        student={
-          data.student
-        }
-        onRefresh={
-          handleRefresh
-        }
-      />
+      <div>
+        <h1 className="text-2xl font-semibold">Edit Student</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Update {student.Name || "this student"}&apos;s details.
+        </p>
+      </div>
 
-      <StudentProfile
-        profile={data}
-        onRefresh={handleRefresh}
+      {saveError && (
+        <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {saveError}
+        </div>
+      )}
+
+      <StudentForm
+        studentId={studentId}
+        initialValues={initialValues}
+        loading={saving}
+        onSubmit={handleSubmit}
+        onCancel={() => {
+          if (!saving) router.push(`/students/${studentId}`);
+        }}
       />
     </div>
   );
