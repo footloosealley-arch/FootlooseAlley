@@ -342,6 +342,92 @@ function throwSupabaseError(
   }
 }
 
+type CanonicalEnquiryRow = {
+  id: number;
+  Name: string;
+  Phone: string;
+  Email: string | null;
+  gender: EnquiryGender | null;
+  age: number | null;
+  Program: string;
+  source: EnquirySource;
+  Status: string;
+  enquiry_date: string;
+  Follow_up_date: string | null;
+  trial_date: string | null;
+  assigned_to: string | null;
+  Notes: string | null;
+  converted_student_id: number | null;
+  converted_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+const canonicalStatusByApplicationStatus: Record<EnquiryStatus, string> = {
+  New: "New",
+  Contacted: "Contacted",
+  "Follow-up": "Follow Up",
+  "Trial Scheduled": "Trial Booked",
+  "Trial Completed": "Trial Completed",
+  Joined: "Joined",
+  "Not Interested": "Closed",
+};
+
+function toApplicationStatus(status: string): EnquiryStatus {
+  if (status === "Follow Up") return "Follow-up";
+  if (status === "Trial Booked") return "Trial Scheduled";
+  if (status === "Closed") return "Not Interested";
+  return status as EnquiryStatus;
+}
+
+function fromCanonicalEnquiry(row: CanonicalEnquiryRow): Enquiry {
+  return {
+    id: row.id,
+    name: row.Name,
+    phone: row.Phone,
+    email: row.Email,
+    gender: row.gender,
+    age: row.age,
+    interested_in: row.Program,
+    source: row.source,
+    status: toApplicationStatus(row.Status),
+    enquiry_date: row.enquiry_date,
+    follow_up_date: row.Follow_up_date,
+    trial_date: row.trial_date,
+    assigned_to: row.assigned_to,
+    notes: row.Notes,
+    converted_student_id: row.converted_student_id,
+    converted_at: row.converted_at,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+function toCanonicalEnquiry(
+  enquiry: CreateEnquiryInput | UpdateEnquiryInput
+): Record<string, unknown> {
+  const canonical: Record<string, unknown> = {};
+  const fields = {
+    name: "Name",
+    phone: "Phone",
+    email: "Email",
+    interested_in: "Program",
+    status: "Status",
+    follow_up_date: "Follow_up_date",
+    notes: "Notes",
+  } as const;
+
+  Object.entries(enquiry).forEach(([key, value]) => {
+    const canonicalKey = fields[key as keyof typeof fields] ?? key;
+    canonical[canonicalKey] =
+      key === "status"
+        ? canonicalStatusByApplicationStatus[value as EnquiryStatus]
+        : value;
+  });
+
+  return canonical;
+}
+
 function isActiveEnquiry(
   enquiry: Enquiry
 ): boolean {
@@ -359,7 +445,7 @@ export const enquiriesService = {
       data,
       error,
     } = await supabase
-      .from("enquiries")
+      .from("Enquiries")
       .select("*")
       .order("created_at", {
         ascending: false,
@@ -370,9 +456,9 @@ export const enquiriesService = {
       "Unable to load enquiries."
     );
 
-    return (
-      data ?? []
-    ) as Enquiry[];
+    return (data ?? []).map((row) =>
+      fromCanonicalEnquiry(row as CanonicalEnquiryRow)
+    );
   },
 
   async getEnquiryById(
@@ -391,7 +477,7 @@ export const enquiriesService = {
       data,
       error,
     } = await supabase
-      .from("enquiries")
+      .from("Enquiries")
       .select("*")
       .eq("id", id)
       .single();
@@ -407,7 +493,7 @@ export const enquiriesService = {
       );
     }
 
-    return data as Enquiry;
+    return fromCanonicalEnquiry(data as CanonicalEnquiryRow);
   },
 
   async createEnquiry(
@@ -422,8 +508,8 @@ export const enquiriesService = {
       data,
       error,
     } = await supabase
-      .from("enquiries")
-      .insert(enquiryData)
+      .from("Enquiries")
+      .insert(toCanonicalEnquiry(enquiryData))
       .select("*")
       .single();
 
@@ -438,7 +524,7 @@ export const enquiriesService = {
       );
     }
 
-    return data as Enquiry;
+    return fromCanonicalEnquiry(data as CanonicalEnquiryRow);
   },
 
   async updateEnquiry(
@@ -473,8 +559,8 @@ export const enquiriesService = {
       data,
       error,
     } = await supabase
-      .from("enquiries")
-      .update(enquiryData)
+      .from("Enquiries")
+      .update(toCanonicalEnquiry(enquiryData))
       .eq("id", id)
       .select("*")
       .single();
@@ -490,7 +576,7 @@ export const enquiriesService = {
       );
     }
 
-    return data as Enquiry;
+    return fromCanonicalEnquiry(data as CanonicalEnquiryRow);
   },
 
   async deleteEnquiry(
@@ -508,7 +594,7 @@ export const enquiriesService = {
     const {
       error,
     } = await supabase
-      .from("enquiries")
+      .from("Enquiries")
       .delete()
       .eq("id", id);
 
