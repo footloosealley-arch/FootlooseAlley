@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import {
   CalendarClock,
@@ -13,6 +12,7 @@ import {
 
 import EmptyState from "@/components/common/EmptyState";
 import LoadingCard from "@/components/common/LoadingCard";
+import PrivateStudentPhoto from "@/components/students/PrivateStudentPhoto";
 import type { Student } from "@/types/database";
 
 interface StudentTableProps {
@@ -67,19 +67,20 @@ function feeTone(amount: number) {
 }
 
 function Avatar({ student }: { student: Student }) {
-  return student.photo_url ? (
-    <Image
-      src={student.photo_url}
-      alt={student.Name ?? "Student"}
-      width={48}
-      height={48}
-      className="h-12 w-12 rounded-2xl object-cover ring-1 ring-border"
-    />
-  ) : (
+  const fallback = (
     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 font-bold text-primary ring-1 ring-primary/10">
       {getInitials(student.Name)}
     </div>
   );
+
+  return student.photo_url ? (
+    <PrivateStudentPhoto
+      path={student.photo_url}
+      alt={student.Name ?? "Student"}
+      className="h-12 w-12 rounded-2xl object-cover ring-1 ring-border"
+      fallback={fallback}
+    />
+  ) : fallback;
 }
 
 function QuickActions({ student }: { student: Student }) {

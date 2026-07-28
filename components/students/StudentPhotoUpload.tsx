@@ -21,6 +21,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import PrivateStudentPhoto from "@/components/students/PrivateStudentPhoto";
 
 type StudentPhotoUploadProps = {
   value: string | null;
@@ -52,25 +53,6 @@ function createSafeFileName(file: File) {
           .slice(2)}`;
 
   return `${uniqueName}.${extension}`;
-}
-
-function getStoragePathFromPublicUrl(
-  photoUrl: string
-) {
-  const marker = `/storage/v1/object/public/${STORAGE_BUCKET}/`;
-
-  const markerIndex =
-    photoUrl.indexOf(marker);
-
-  if (markerIndex === -1) {
-    return null;
-  }
-
-  return decodeURIComponent(
-    photoUrl.slice(
-      markerIndex + marker.length
-    )
-  );
 }
 
 export default function StudentPhotoUpload({
@@ -145,35 +127,7 @@ export default function StudentPhotoUpload({
         throw uploadError;
       }
 
-      const { data } = supabase.storage
-        .from(STORAGE_BUCKET)
-        .getPublicUrl(filePath);
-
-      if (!data.publicUrl) {
-        throw new Error(
-          "The photo was uploaded, but its public URL could not be created."
-        );
-      }
-
-      const previousPhotoUrl = value;
-
-      onChange(data.publicUrl);
-
-      if (
-        previousPhotoUrl &&
-        previousPhotoUrl !== data.publicUrl
-      ) {
-        const previousPath =
-          getStoragePathFromPublicUrl(
-            previousPhotoUrl
-          );
-
-        if (previousPath) {
-          await supabase.storage
-            .from(STORAGE_BUCKET)
-            .remove([previousPath]);
-        }
-      }
+      onChange(filePath);
     } catch (uploadError) {
       console.error(
         "Student photo upload failed:",
@@ -194,7 +148,7 @@ export default function StudentPhotoUpload({
     }
   }
 
-  async function removePhoto() {
+  function removePhoto() {
     if (
       disabled ||
       uploading ||
@@ -203,39 +157,8 @@ export default function StudentPhotoUpload({
       return;
     }
 
-    setUploading(true);
     setError(null);
-
-    try {
-      const storagePath =
-        getStoragePathFromPublicUrl(value);
-
-      if (storagePath) {
-        const { error: removeError } =
-          await supabase.storage
-            .from(STORAGE_BUCKET)
-            .remove([storagePath]);
-
-        if (removeError) {
-          throw removeError;
-        }
-      }
-
-      onChange(null);
-    } catch (removeError) {
-      console.error(
-        "Student photo removal failed:",
-        removeError
-      );
-
-      setError(
-        removeError instanceof Error
-          ? removeError.message
-          : "Unable to remove the photo. Please try again."
-      );
-    } finally {
-      setUploading(false);
-    }
+    onChange(null);
   }
 
   function handleFileChange(
@@ -307,10 +230,11 @@ export default function StudentPhotoUpload({
       <div className="grid gap-6 md:grid-cols-[180px_1fr] md:items-center">
         <div className="mx-auto flex h-40 w-40 items-center justify-center overflow-hidden rounded-full border bg-muted">
           {value ? (
-            <img
-              src={value}
+            <PrivateStudentPhoto
+              path={value}
               alt="Student profile"
               className="h-full w-full object-cover"
+              fallback={<div className="flex flex-col items-center gap-2 text-muted-foreground"><ImagePlus className="h-10 w-10" /><span className="text-xs">Photo unavailable</span></div>}
             />
           ) : (
             <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -414,7 +338,7 @@ export default function StudentPhotoUpload({
                 type="button"
                 variant="destructive"
                 onClick={() =>
-                  void removePhoto()
+                  removePhoto()
                 }
                 disabled={
                   disabled || uploading

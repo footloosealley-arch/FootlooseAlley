@@ -25,6 +25,7 @@ import {
 } from "react";
 
 import { Button } from "@/components/ui/button";
+import PrivateStudentPhoto from "@/components/students/PrivateStudentPhoto";
 import {
   attendanceService,
   type AttendanceClass,
@@ -351,6 +352,7 @@ export default function AttendanceRegister() {
     ]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedDate(
       getLocalDateString()
     );
@@ -359,6 +361,7 @@ export default function AttendanceRegister() {
   }, [loadReferenceData]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadAttendance();
   }, [loadAttendance]);
 
@@ -983,15 +986,14 @@ export default function AttendanceRegister() {
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-3">
                             {student.photo_url ? (
-                              <img
-                                src={
-                                  student.photo_url
-                                }
+                              <PrivateStudentPhoto
+                                path={student.photo_url}
                                 alt={
                                   student.Name ||
                                   "Student"
                                 }
                                 className="h-10 w-10 rounded-full border object-cover"
+                                fallback={<div className="flex h-10 w-10 items-center justify-center rounded-full border bg-muted text-sm font-semibold">{getInitials(student.Name)}</div>}
                               />
                             ) : (
                               <div className="flex h-10 w-10 items-center justify-center rounded-full border bg-muted text-sm font-semibold">

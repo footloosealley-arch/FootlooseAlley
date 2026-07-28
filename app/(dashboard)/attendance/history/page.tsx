@@ -23,6 +23,7 @@ import {
 } from "react";
 
 import { Button } from "@/components/ui/button";
+import PrivateStudentPhoto from "@/components/students/PrivateStudentPhoto";
 import {
   attendanceHistoryService,
   type AttendanceHistoryClass,
@@ -273,10 +274,12 @@ export default function AttendanceHistoryPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadClasses();
   }, [loadClasses]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadHistory();
   }, [loadHistory]);
 
@@ -709,17 +712,15 @@ export default function AttendanceHistoryPage() {
                           <div className="flex items-center gap-3">
                             {record.student
                               ?.photo_url ? (
-                              <img
-                                src={
-                                  record.student
-                                    .photo_url
-                                }
+                              <PrivateStudentPhoto
+                                path={record.student.photo_url}
                                 alt={
                                   record.student
                                     .Name ||
                                   "Student"
                                 }
                                 className="h-10 w-10 rounded-full border object-cover"
+                                fallback={<div className="flex h-10 w-10 items-center justify-center rounded-full border bg-muted text-sm font-semibold">{getInitials(record.student?.Name ?? null)}</div>}
                               />
                             ) : (
                               <div className="flex h-10 w-10 items-center justify-center rounded-full border bg-muted text-sm font-semibold">
