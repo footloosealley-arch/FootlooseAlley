@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -50,6 +50,12 @@ function mapInitialValues(student: Student): StudentFormData {
 }
 
 function createUpdatePayload(values: StudentFormData): Partial<Student> {
+  const feeStatus = values.feesDue <= 0
+    ? "Paid"
+    : values.feesDue < values.fees
+      ? "Partial"
+      : "Due";
+
   return {
     Name: values.name.trim(),
     Phone: values.phone.trim(),
@@ -67,6 +73,7 @@ function createUpdatePayload(values: StudentFormData): Partial<Student> {
     Fees: values.fees,
     membership_discount: values.discount,
     Fees_due: values.feesDue,
+    fee_status: feeStatus,
     join_date: values.joinDate || null,
     next_due_date: values.nextDueDate || null,
     medical_notes: values.medicalNotes.trim() || null,
@@ -89,6 +96,11 @@ export default function EditStudentPage() {
     [studentId]
   );
 
+  const initialValues = useMemo(
+    () => student ? mapInitialValues(student) : undefined,
+    [student]
+  );
+
   async function handleSubmit(values: StudentFormData) {
     if (!studentId || submissionInProgress.current) return;
 
@@ -108,6 +120,7 @@ export default function EditStudentPage() {
       await studentsService.updateStudent(studentId, createUpdatePayload(values));
       toast.success("Student details updated successfully.");
       router.push(`/students/${studentId}`);
+      router.refresh();
     } catch (submitError) {
       console.error("Failed to update student:", submitError);
       setSaveError(
@@ -168,7 +181,7 @@ export default function EditStudentPage() {
 
       <StudentForm
         studentId={studentId}
-        initialValues={mapInitialValues(student)}
+        initialValues={initialValues}
         loading={saving}
         onSubmit={handleSubmit}
         onCancel={() => {
