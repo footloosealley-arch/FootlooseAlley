@@ -178,6 +178,7 @@ export default function StudentProfilePage() {
 
       <StudentProfile
         profile={data}
+        onRefresh={handleRefresh}
       />
     </div>
   );

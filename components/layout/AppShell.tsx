@@ -4,6 +4,8 @@ import { ReactNode } from "react";
 
 import AppHeader from "./AppHeader";
 import AppSidebar from "./AppSidebar";
+import AuthGuard from "@/components/auth/AuthGuard";
+import AppErrorBoundary from "@/components/common/AppErrorBoundary";
 
 import {
   SidebarInset,
@@ -16,16 +18,20 @@ interface Props {
 
 export default function AppShell({ children }: Props) {
   return (
-    <SidebarProvider defaultOpen>
-      <AppSidebar />
+    <AuthGuard>
+      <AppErrorBoundary>
+        <SidebarProvider defaultOpen>
+          <AppSidebar />
 
-      <SidebarInset>
-        <AppHeader />
+          <SidebarInset>
+            <AppHeader />
 
-        <main className="flex-1 p-6 bg-muted/20 min-h-[calc(100vh-64px)]">
-          {children}
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+            <main className="min-h-[calc(100vh-64px)] flex-1 bg-muted/20 p-4 sm:p-6">
+              {children}
+            </main>
+          </SidebarInset>
+        </SidebarProvider>
+      </AppErrorBoundary>
+    </AuthGuard>
   );
 }

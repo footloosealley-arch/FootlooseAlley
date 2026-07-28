@@ -5,6 +5,8 @@ import {
   useState,
 } from "react";
 
+import { Activity, BadgeIndianRupee, UserCheck, Users } from "lucide-react";
+
 import PageHeader from "@/components/layout/PageHeader";
 
 import AddStudentDialog from "@/components/students/AddStudentDialog";
@@ -255,6 +257,25 @@ export default function StudentsPage() {
         title="Students"
         description="Manage all studio students"
       />
+
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border bg-background p-4 shadow-sm">
+          <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Total students</span><Users className="h-4 w-4 text-primary" /></div>
+          <p className="mt-2 text-2xl font-bold">{total}</p>
+        </div>
+        <div className="rounded-2xl border bg-background p-4 shadow-sm">
+          <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Active on page</span><UserCheck className="h-4 w-4 text-emerald-600" /></div>
+          <p className="mt-2 text-2xl font-bold">{students.filter((student) => (student.Status ?? "").toLowerCase() === "active").length}</p>
+        </div>
+        <div className="rounded-2xl border bg-background p-4 shadow-sm">
+          <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Fees due on page</span><BadgeIndianRupee className="h-4 w-4 text-rose-600" /></div>
+          <p className="mt-2 text-2xl font-bold">₹{students.reduce((sum, student) => sum + Number(student.Fees_due ?? 0), 0).toLocaleString("en-IN")}</p>
+        </div>
+        <div className="rounded-2xl border bg-background p-4 shadow-sm">
+          <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Average attendance</span><Activity className="h-4 w-4 text-amber-600" /></div>
+          <p className="mt-2 text-2xl font-bold">{students.length ? Math.round(students.reduce((sum, student) => sum + Number(student.attendance_percentage ?? 0), 0) / students.length) : 0}%</p>
+        </div>
+      </div>
 
       <StudentToolbar
         search={search}

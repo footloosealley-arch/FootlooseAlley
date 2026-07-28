@@ -23,6 +23,16 @@ function getLocalDateString(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+function getWeekStartDate() {
+  const now = new Date();
+  const day = now.getDay();
+  const difference = day === 0 ? 6 : day - 1;
+
+  return getLocalDateString(
+    new Date(now.getFullYear(), now.getMonth(), now.getDate() - difference)
+  );
+}
+
 function getMonthStartDate() {
   const now = new Date();
 
@@ -118,6 +128,7 @@ export const paymentService = {
   async getSummary(): Promise<PaymentSummary> {
     const today = getLocalDateString();
     const monthStart = getMonthStartDate();
+    const weekStart = getWeekStartDate();
 
     const [
       paymentsResult,
@@ -177,6 +188,18 @@ export const paymentService = {
           0
         );
 
+    const weekCollected =
+      completedPayments
+        .filter(
+          (payment) =>
+            payment.payment_date >= weekStart
+        )
+        .reduce(
+          (total, payment) =>
+            total + Number(payment.amount ?? 0),
+          0
+        );
+
     const todayCollected =
       completedPayments
         .filter(
@@ -204,6 +227,7 @@ export const paymentService = {
     return {
       totalCollected,
       monthCollected,
+      weekCollected,
       todayCollected,
       pendingAmount,
       paymentCount:

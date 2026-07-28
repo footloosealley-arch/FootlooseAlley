@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   Users,
   UserPlus,
+  ClipboardList,
   CalendarDays,
   ClipboardCheck,
   CreditCard,
@@ -10,6 +11,8 @@ import {
   BarChart3,
   PartyPopper,
   Settings,
+  MessageCircle,
+  Bot,
 } from "lucide-react";
 
 export interface NavigationItem {
@@ -20,7 +23,7 @@ export interface NavigationItem {
 
 export const navigation: NavigationItem[] = [
   {
-    title: "Dashboard",
+    title: "Reception",
     href: "/dashboard",
     icon: LayoutDashboard,
   },
@@ -33,6 +36,11 @@ export const navigation: NavigationItem[] = [
     title: "Enquiries",
     href: "/enquiries",
     icon: UserPlus,
+  },
+  {
+    title: "Trials",
+    href: "/trials",
+    icon: ClipboardList,
   },
   {
     title: "Attendance",
@@ -55,6 +63,11 @@ export const navigation: NavigationItem[] = [
     icon: CreditCard,
   },
   {
+    title: "WhatsApp",
+    href: "/whatsapp",
+    icon: MessageCircle,
+  },
+  {
     title: "Instructors",
     href: "/instructors",
     icon: UserCog,
@@ -63,6 +76,11 @@ export const navigation: NavigationItem[] = [
     title: "Reports",
     href: "/reports",
     icon: BarChart3,
+  },
+  {
+    title: "AI Assistant",
+    href: "/assistant",
+    icon: Bot,
   },
   {
     title: "Events",

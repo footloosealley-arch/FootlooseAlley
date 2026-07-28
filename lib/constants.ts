@@ -1,7 +1,7 @@
 export const APP = {
   NAME: "Footloose Alley Studio Manager",
   SHORT_NAME: "Footloose Alley",
-  VERSION: "2.0.0",
+  VERSION: "3.7.0",
 } as const;
 
 export const STUDENT_STATUS = [

@@ -53,7 +53,24 @@ export interface Student {
   last_attendance: string | null;
 
   class_id: number | null;
+
+  membership_start_date: string | null;
+  membership_end_date: string | null;
+  membership_status: MembershipStatus | null;
+  membership_discount: number | null;
+  membership_paid_amount: number | null;
+  membership_freeze_started_at: string | null;
+  membership_freeze_reason: string | null;
 }
+
+export type MembershipPlan = "Monthly" | "3 Months" | "6 Months" | "Yearly";
+
+export type MembershipStatus =
+  | "Active"
+  | "Expiring Soon"
+  | "Expired"
+  | "Frozen"
+  | "Cancelled";
 
 export interface Payment {
   id: number;
@@ -108,6 +125,7 @@ export interface CreatePaymentInput {
 export interface PaymentSummary {
   totalCollected: number;
   monthCollected: number;
+  weekCollected: number;
   todayCollected: number;
   pendingAmount: number;
   paymentCount: number;
@@ -207,32 +225,36 @@ export interface StudioClass {
 
 export interface Membership {
   id: number;
-
   created_at: string;
-
   student_id: number;
-
-  plan: string | null;
-
-  amount: number | null;
-
-  start_date: string | null;
-
-  expiry_date: string | null;
-
-  status: string | null;
-
-  payment_status: string | null;
-
+  plan: MembershipPlan;
+  amount: number;
+  discount: number;
+  paid_amount: number;
+  amount_due: number;
+  start_date: string;
+  expiry_date: string;
+  status: MembershipStatus;
+  payment_status: "Paid" | "Partial" | "Pending" | "Waived" | "Cancelled";
   renewal_date: string | null;
-
   renewed_from: number | null;
-
-  invoice_number: string | null;
-
-  discount: number | null;
-
   payment_id: number | null;
+  invoice_number: string | null;
+  notes: string | null;
+}
+
+export interface MembershipEvent {
+  id: number;
+  created_at: string;
+  student_id: number;
+  membership_id: number | null;
+  event_type: "Created" | "Renewed" | "Frozen" | "Reactivated" | "Cancelled" | "Expired" | "Adjusted";
+  event_date: string;
+  previous_status: string | null;
+  new_status: string | null;
+  reason: string | null;
+  notes: string | null;
+  created_by: string | null;
 }
 
 export interface DashboardStats {

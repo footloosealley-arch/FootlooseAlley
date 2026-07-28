@@ -2,6 +2,8 @@ import { supabase } from "@/lib/supabase";
 
 import type {
   Attendance,
+  Membership,
+  MembershipEvent,
   Payment,
   Student,
 } from "@/types/database";
@@ -77,6 +79,8 @@ export interface StudentProfileData {
   attendance: StudentAttendanceRecord[];
   payments: Payment[];
   notes: StudentNote[];
+  memberships: Membership[];
+  membershipEvents: MembershipEvent[];
 }
 
 class StudentsService {
@@ -306,10 +310,14 @@ class StudentsService {
       attendance,
       payments,
       notes,
+      memberships,
+      membershipEvents,
     ] = await Promise.all([
       this.getStudentAttendance(id),
       this.getStudentPayments(id),
       this.getStudentNotes(id),
+      this.getStudentMemberships(id),
+      this.getStudentMembershipEvents(id),
     ]);
 
     return {
@@ -317,6 +325,8 @@ class StudentsService {
       attendance,
       payments,
       notes,
+      memberships,
+      membershipEvents,
     };
   }
 
@@ -552,6 +562,30 @@ class StudentsService {
     return (
       data ?? []
     ) as StudentNote[];
+  }
+
+  async getStudentMemberships(studentId: number): Promise<Membership[]> {
+    this.validateStudentId(studentId);
+    const { data, error } = await supabase
+      .from("Memberships")
+      .select("*")
+      .eq("student_id", studentId)
+      .order("start_date", { ascending: false })
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message || "Unable to load membership history.");
+    return (data ?? []) as Membership[];
+  }
+
+  async getStudentMembershipEvents(studentId: number): Promise<MembershipEvent[]> {
+    this.validateStudentId(studentId);
+    const { data, error } = await supabase
+      .from("Membership_Events")
+      .select("*")
+      .eq("student_id", studentId)
+      .order("event_date", { ascending: false })
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message || "Unable to load membership timeline.");
+    return (data ?? []) as MembershipEvent[];
   }
 
   async getClasses() {
