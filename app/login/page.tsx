@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/lib/supabase";
+import BrandLogo from "@/components/branding/BrandLogo";
 
 function getSafeNextPath(): string {
   const requestedPath = new URLSearchParams(window.location.search).get("next");
@@ -73,8 +74,8 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-violet-100 via-background to-orange-50 p-4">
       <div className="w-full max-w-md">
         <div className="mb-6 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-xl font-bold text-primary-foreground shadow-sm">
-            FA
+          <div className="mx-auto flex h-20 w-40 items-center justify-center">
+            <BrandLogo width={160} height={80} className="max-h-full object-contain" />
           </div>
 
           <h1 className="mt-4 text-2xl font-bold">Footloose Alley</h1>
