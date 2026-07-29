@@ -474,9 +474,15 @@ function PublicFormFrame({ children }: { children: ReactNode }) {
         </div>
 
         <section className="overflow-hidden rounded-3xl border border-rose-200/80 bg-white/95 shadow-2xl shadow-rose-200/50 backdrop-blur">
-          <header className="flex flex-col items-center gap-3 border-b border-rose-100 bg-gradient-to-r from-rose-50 via-white to-amber-50 px-6 py-5 text-center sm:flex-row sm:text-left">
-            <BrandLogo width={112} height={72} />
-            <div>
+          <header className="flex flex-col items-center justify-center gap-2 border-b border-rose-100 bg-gradient-to-r from-rose-50 via-white to-amber-50 px-6 py-5 text-center sm:flex-row sm:gap-5 sm:text-left">
+            <div className="rounded-2xl bg-white/80 px-3 shadow-sm ring-1 ring-rose-100">
+              <BrandLogo
+                width={210}
+                height={132}
+                className="drop-shadow-md"
+              />
+            </div>
+            <div className="pb-2 sm:pb-0">
               <p className="text-xl font-black tracking-tight text-slate-950">
                 Footloose Alley
               </p>
