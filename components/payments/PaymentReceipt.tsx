@@ -48,8 +48,8 @@ export default function PaymentReceipt({ payment }: PaymentReceiptProps) {
   return (
     <article id="payment-receipt-print-root" className="receipt-sheet mx-auto w-full max-w-[760px] overflow-hidden rounded-sm border border-neutral-300 bg-white text-black shadow-sm">
       <header className="border-b-4 border-[#861d2d] px-6 py-5 sm:px-8">
-        <div className="flex items-start gap-5">
-          <BrandLogo width={118} height={74} className="shrink-0" />
+        <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
+          <BrandLogo width={190} height={140} className="shrink-0" />
           <div className="min-w-0 border-l border-neutral-300 pl-5">
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Footloose Alley</h2>
             <p className="mt-0.5 text-sm font-semibold text-[#861d2d]">Dance and Fitness Studio</p>
