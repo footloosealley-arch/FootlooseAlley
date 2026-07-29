@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, type ReactNode, useState } from "react";
 import {
   ArrowLeft,
   Camera,
@@ -451,7 +451,7 @@ export default function PublicIntakeForm({ kind }: { kind: IntakeKind }) {
   );
 }
 
-function PublicFormFrame({ children }: { children: React.ReactNode }) {
+function PublicFormFrame({ children }: { children: ReactNode }) {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(244,63,94,0.18),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(245,158,11,0.18),transparent_35%),linear-gradient(to_bottom_right,#fff1f2,#ffffff,#fffbeb)] px-4 py-6 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-4xl">
