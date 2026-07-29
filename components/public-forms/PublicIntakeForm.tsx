@@ -71,6 +71,10 @@ export default function PublicIntakeForm({ kind }: { kind: IntakeKind }) {
       }
     });
 
+    if (isStudent && !fields["WhatsApp Consent"]) {
+      fields["WhatsApp Consent"] = "No";
+    }
+
     const photo = formData.get("Student Photo");
 
     if (isStudent) {
