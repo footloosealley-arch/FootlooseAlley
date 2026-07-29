@@ -21,7 +21,7 @@ export default function RevenueCard({
           </p>
 
           <p className="mt-1 text-sm text-muted-foreground">
-            Current month's collections
+            Current month&apos;s collections
           </p>
         </div>
 

@@ -154,16 +154,9 @@ export default function StudentsPage() {
         instructors,
       };
     },
-    [
-      page,
-      pageSize,
-      search,
-      status,
-      classId,
-      instructorId,
-      sortBy,
-      sortOrder,
-    ]
+    [page, pageSize, search, status, classId, instructorId, sortBy, sortOrder]
+      .map((value) => `${String(value).length}:${String(value)}`)
+      .join("|")
   );
 
   const total =

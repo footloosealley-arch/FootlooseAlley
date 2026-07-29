@@ -159,8 +159,8 @@ export default function MarkFeeDuePaidDialog({
     form,
     setForm,
   ] =
-    useState<PaymentFormState>(
-      createEmptyForm()
+    useState<PaymentFormState>(() =>
+      feeDue ? createFormFromFeeDue(feeDue) : createEmptyForm()
     );
 
   const [
@@ -238,27 +238,6 @@ export default function MarkFeeDuePaidDialog({
       feeDue,
       form.paid_amount,
     ]);
-
-  useEffect(() => {
-    if (
-      !open ||
-      !feeDue
-    ) {
-      return;
-    }
-
-    setForm(
-      createFormFromFeeDue(
-        feeDue
-      )
-    );
-
-    setFieldErrors({});
-    setError("");
-  }, [
-    open,
-    feeDue,
-  ]);
 
   useEffect(() => {
     if (!open) {

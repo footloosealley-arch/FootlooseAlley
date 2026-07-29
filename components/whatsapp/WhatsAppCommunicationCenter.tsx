@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -12,6 +12,7 @@ import {
   Search,
   Send,
 } from "lucide-react";
+import { useLatestAsync } from "@/hooks/useLatestAsync";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -90,7 +91,6 @@ function StatCard({
 
 export default function WhatsAppCommunicationCenter() {
   const [data, setData] = useState<WhatsAppCommunicationData | null>(null);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<WhatsAppMessageCategory | "All">("All");
   const [selected, setSelected] = useState<WhatsAppQueueItem | null>(null);
@@ -98,21 +98,16 @@ export default function WhatsAppCommunicationCenter() {
   const [sending, setSending] = useState(false);
   const [tab, setTab] = useState<"Queue" | "History">("Queue");
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      setData(await whatsappService.getCommunicationData());
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to load messages.");
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
+  const commitData = useCallback((result: WhatsAppCommunicationData) => setData(result), []);
+  const handleLoadError = useCallback((error: unknown) => {
+    toast.error(error instanceof Error ? error.message : "Unable to load messages.");
+    setData(null);
   }, []);
-
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
+  const { loading, refresh: loadData } = useLatestAsync({
+    fetchData: whatsappService.getCommunicationData,
+    onSuccess: commitData,
+    onError: handleLoadError,
+  });
 
   const filteredQueue = useMemo(() => {
     const query = search.trim().toLowerCase();

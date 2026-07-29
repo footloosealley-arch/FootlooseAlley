@@ -1,6 +1,6 @@
 "use client";
 
-import { format, getDay, parseISO } from "date-fns";
+import { format, getDay } from "date-fns";
 import { CalendarDays } from "lucide-react";
 import type { AttendanceHistoryRecord } from "@/services/attendance-history.service";
 

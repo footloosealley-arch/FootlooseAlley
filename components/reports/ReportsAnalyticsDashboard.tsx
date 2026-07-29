@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useLatestAsync } from "@/hooks/useLatestAsync";
 import {
   BarChart3,
   CalendarDays,
@@ -175,27 +176,23 @@ export default function ReportsAnalyticsDashboard() {
   const [preset, setPreset] = useState<RangePreset>("30 Days");
   const [range, setRange] = useState<ReportDateRange>(() => getPresetRange("30 Days"));
   const [data, setData] = useState<ReportsData | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  const loadReports = useCallback(async () => {
+  const fetchReports = useCallback(async () => {
     if (!range.startDate || !range.endDate || range.startDate > range.endDate) {
-      toast.error("Choose a valid report date range.");
-      return;
+      throw new Error("Choose a valid report date range.");
     }
-    setLoading(true);
-    try {
-      setData(await reportsService.getReportsData(range));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to load reports.");
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
+    return reportsService.getReportsData(range);
   }, [range]);
-
-  useEffect(() => {
-    void loadReports();
-  }, [loadReports]);
+  const commitReports = useCallback((result: ReportsData) => setData(result), []);
+  const handleReportsError = useCallback((error: unknown) => {
+    toast.error(error instanceof Error ? error.message : "Unable to load reports.");
+    setData(null);
+  }, []);
+  const { loading, refresh: loadReports } = useLatestAsync({
+    fetchData: fetchReports,
+    onSuccess: commitReports,
+    onError: handleReportsError,
+  });
 
   function selectPreset(value: RangePreset) {
     setPreset(value);

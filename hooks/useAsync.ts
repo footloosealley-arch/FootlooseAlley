@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  type DependencyList,
   useCallback,
   useEffect,
   useRef,
@@ -10,11 +9,14 @@ import {
 
 export type UseAsyncOptions = {
   immediate?: boolean;
-  dependencies?: DependencyList;
+  refreshKey?: string | number | boolean | null;
 };
 
 export type UseAsyncSecondArgument =
-  | DependencyList
+  | string
+  | number
+  | boolean
+  | null
   | UseAsyncOptions;
 
 export type UseAsyncResult<T> = {
@@ -42,47 +44,17 @@ function normalizeError(
   );
 }
 
-function isDependencyList(
-  value: UseAsyncSecondArgument | undefined
-): value is DependencyList {
-  return Array.isArray(value);
-}
-
-function isUseAsyncOptions(
-  value: UseAsyncSecondArgument | undefined
-): value is UseAsyncOptions {
-  return (
-    value !== undefined &&
-    !Array.isArray(value) &&
-    typeof value === "object"
-  );
-}
-
 function resolveOptions(
   secondArgument?: UseAsyncSecondArgument
 ): Required<UseAsyncOptions> {
-  if (isDependencyList(secondArgument)) {
+  if (typeof secondArgument === "object" && secondArgument !== null) {
     return {
-      immediate: true,
-      dependencies: secondArgument,
+      immediate: secondArgument.immediate ?? true,
+      refreshKey: secondArgument.refreshKey ?? null,
     };
   }
 
-  if (isUseAsyncOptions(secondArgument)) {
-    return {
-      immediate:
-        secondArgument.immediate ??
-        true,
-      dependencies:
-        secondArgument.dependencies ??
-        [],
-    };
-  }
-
-  return {
-    immediate: true,
-    dependencies: [],
-  };
+  return { immediate: true, refreshKey: secondArgument ?? null };
 }
 
 export function useAsync<T>(
@@ -189,13 +161,7 @@ export function useAsync<T>(
 
     void execute();
 
-    // The calling component supplies these dependencies.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    execute,
-    options.immediate,
-    ...options.dependencies,
-  ]);
+  }, [execute, options.immediate, options.refreshKey]);
 
   return {
     data,

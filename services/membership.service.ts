@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import type { Membership, MembershipEvent, MembershipPlan, MembershipStatus, Student } from "@/types/database";
+import type { Membership, MembershipPlan, MembershipStatus, Student } from "@/types/database";
 
 export const MEMBERSHIP_PLANS: Record<MembershipPlan, { label: string; months: number; amount: number }> = {
   Monthly: { label: "Monthly", months: 1, amount: 2500 },

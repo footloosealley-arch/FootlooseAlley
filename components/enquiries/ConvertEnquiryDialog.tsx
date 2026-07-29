@@ -246,7 +246,7 @@ function formatInstructorLabel(
     : name;
 }
 
-export default function ConvertEnquiryDialog({
+function ConvertEnquiryDialogSession({
   open,
   enquiry,
   onClose,
@@ -298,23 +298,6 @@ export default function ConvertEnquiryDialog({
     useState<
       string | null
     >(null);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    setForm(
-      createInitialFormState(
-        enquiry
-      )
-    );
-
-    setError(null);
-  }, [
-    open,
-    enquiry,
-  ]);
 
   useEffect(() => {
     if (!open) {
@@ -1424,4 +1407,10 @@ export default function ConvertEnquiryDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+export default function ConvertEnquiryDialog(props: ConvertEnquiryDialogProps) {
+  if (!props.open) return null;
+
+  return <ConvertEnquiryDialogSession {...props} key={props.enquiry?.id ?? "new"} />;
 }

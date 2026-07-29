@@ -1,7 +1,8 @@
 "use client";
 
+import { useLatestAsync } from "@/hooks/useLatestAsync";
 import { Activity, Loader2, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { eachDayOfInterval, format, startOfDay, startOfMonth, subDays } from "date-fns";
 
 import AttendanceAnalytics from "@/components/attendance/AttendanceAnalytics";
@@ -23,7 +24,6 @@ function normalizeStatus(status: string | null) { return status?.trim().toLowerC
 
 export default function AttendanceDashboard() {
   const [records, setRecords] = useState<AttendanceHistoryRecord[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const today = useMemo(() => startOfDay(new Date()), []);
@@ -31,18 +31,23 @@ export default function AttendanceDashboard() {
   const monthStart = useMemo(() => startOfMonth(today), [today]);
   const weekStart = useMemo(() => subDays(today, 6), [today]);
 
-  const loadDashboard = useCallback(async () => {
-    try {
-      setLoading(true); setError(null);
-      const history = await attendanceHistoryService.getHistory({ startDate: getDateKey(monthStart), endDate: todayKey });
-      setRecords(history);
-    } catch (loadError) {
-      console.error("Attendance dashboard loading failed:", loadError);
-      setError(loadError instanceof Error ? loadError.message : "Unable to load attendance intelligence.");
-    } finally { setLoading(false); }
-  }, [monthStart, todayKey]);
-
-  useEffect(() => { void loadDashboard(); }, [loadDashboard]);
+  const fetchDashboard = useCallback(() =>
+    attendanceHistoryService.getHistory({ startDate: getDateKey(monthStart), endDate: todayKey }),
+    [monthStart, todayKey]
+  );
+  const commitDashboard = useCallback((history: AttendanceHistoryRecord[]) => {
+    setRecords(history);
+    setError(null);
+  }, []);
+  const handleDashboardError = useCallback((loadError: unknown) => {
+    console.error("Attendance dashboard loading failed:", loadError);
+    setError(loadError instanceof Error ? loadError.message : "Unable to load attendance intelligence.");
+  }, []);
+  const { loading, refresh: loadDashboard } = useLatestAsync({
+    fetchData: fetchDashboard,
+    onSuccess: commitDashboard,
+    onError: handleDashboardError,
+  });
 
   const todayRecords = useMemo(() => records.filter((record) => record.date === todayKey), [records, todayKey]);
   const summary = useMemo<AttendanceSummary>(() => {
