@@ -30,6 +30,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 import { studentsService } from "@/services/students.service";
+import { STUDIO_BATCHES } from "@/lib/studio-batches";
 
 export type StudentFormData = {
   name: string;
@@ -251,7 +252,7 @@ export default function StudentForm({
 
     if (!form.program.trim()) {
       nextErrors.program =
-        "Program is required.";
+        "Batch or class is required.";
     }
 
     if (!form.membershipPlan.trim()) {
@@ -537,7 +538,7 @@ export default function StudentForm({
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="program">
-                Program *
+                Batch / Class *
               </Label>
 
               <Select
@@ -551,37 +552,18 @@ export default function StudentForm({
 }
               >
                 <SelectTrigger id="program">
-                  <SelectValue placeholder="Select program" />
+                  <SelectValue placeholder="Select batch or class" />
                 </SelectTrigger>
 
                 <SelectContent>
-                  <SelectItem value="Zumba">
-                    Zumba
-                  </SelectItem>
-
-                  <SelectItem value="Dance Fitness">
-                    Dance Fitness
-                  </SelectItem>
-
-                  <SelectItem value="Hip Hop">
-                    Hip Hop
-                  </SelectItem>
-
-                  <SelectItem value="Bollywood">
-                    Bollywood
-                  </SelectItem>
-
-                  <SelectItem value="Yoga">
-                    Yoga
-                  </SelectItem>
-
-                  <SelectItem value="Kids Dance">
-                    Kids Dance
-                  </SelectItem>
-
-                  <SelectItem value="Personal Training">
-                    Personal Training
-                  </SelectItem>
+                  {STUDIO_BATCHES.map((batch) => (
+                    <SelectItem
+                      key={batch}
+                      value={batch}
+                    >
+                      {batch}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 

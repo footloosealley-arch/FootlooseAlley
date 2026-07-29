@@ -1,4 +1,8 @@
 import { supabase } from "@/lib/supabase";
+import {
+  getStudioBatch,
+  STUDIO_BATCHES,
+} from "@/lib/studio-batches";
 
 export type AttendanceStatus =
   | "Present"
@@ -124,46 +128,7 @@ function normalizeAttendanceStatus(
 
 export const attendanceService = {
   async getBatches(): Promise<string[]> {
-    const { data, error } = await supabase
-      .from("Students")
-      .select("batch,Status")
-      .not("batch", "is", null)
-      .order("batch", {
-        ascending: true,
-      });
-
-    if (error) {
-      throw new Error(
-        getErrorMessage(
-          error,
-          "Unable to load student batches."
-        )
-      );
-    }
-
-    const batchRows = (data ?? []) as unknown as {
-      batch: string | null;
-      Status: string | null;
-    }[];
-    const uniqueBatches = new Map<string, string>();
-
-    for (const row of batchRows) {
-      const batch = row.batch?.trim();
-
-      if (!batch || !isActiveStatus(row.Status)) {
-        continue;
-      }
-
-      const normalizedBatch = batch.toLowerCase();
-
-      if (!uniqueBatches.has(normalizedBatch)) {
-        uniqueBatches.set(normalizedBatch, batch);
-      }
-    }
-
-    return [...uniqueBatches.values()].sort((left, right) =>
-      left.localeCompare(right)
-    );
+    return [...STUDIO_BATCHES];
   },
 
   async getInstructors(): Promise<
@@ -220,7 +185,6 @@ export const attendanceService = {
           instructor_id
         `
       )
-      .eq("batch", batch)
       .order("Name", {
         ascending: true,
       });
@@ -237,8 +201,13 @@ export const attendanceService = {
     const students =
       (data ?? []) as AttendanceStudent[];
 
-    return students.filter((student) =>
-      isActiveStatus(student.Status)
+    return students.filter(
+      (student) =>
+        isActiveStatus(student.Status) &&
+        getStudioBatch(
+          student.batch,
+          student.Program
+        ) === batch
     );
   },
 

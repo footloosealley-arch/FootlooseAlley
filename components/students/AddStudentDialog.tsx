@@ -70,7 +70,7 @@ function createStudentPayload(
 
     student_code: null,
 
-    batch: null,
+    batch: values.program || null,
 
     instructor_id:
       values.instructorId ?? null,

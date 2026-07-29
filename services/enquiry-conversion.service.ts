@@ -306,7 +306,9 @@ function createStudentPayload(
       null,
 
     batch:
-      null,
+      cleanText(
+        enquiry.interested_in
+      ),
 
     instructor_id:
       validateOptionalId(

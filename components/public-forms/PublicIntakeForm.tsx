@@ -12,16 +12,7 @@ import {
 
 import BrandLogo from "@/components/branding/BrandLogo";
 import { Button } from "@/components/ui/button";
-
-const programs = [
-  "Zumba",
-  "Dance Fitness",
-  "Hip Hop",
-  "Bollywood",
-  "Yoga",
-  "Kids Dance",
-  "Personal Training",
-];
+import { STUDIO_BATCHES } from "@/lib/studio-batches";
 
 const genders = [
   "Female",
@@ -56,6 +47,7 @@ export default function PublicIntakeForm({ kind }: { kind: IntakeKind }) {
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [photoName, setPhotoName] = useState("");
+  const [selectedBatch, setSelectedBatch] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -151,6 +143,7 @@ export default function PublicIntakeForm({ kind }: { kind: IntakeKind }) {
       );
       form.reset();
       setPhotoName("");
+      setSelectedBatch("");
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -291,17 +284,20 @@ export default function PublicIntakeForm({ kind }: { kind: IntakeKind }) {
           )}
 
           <label className={labelClass}>
-            Program Interested In<RequiredMark />
+            Batch / Class Interested In<RequiredMark />
             <select
               className={inputClass}
               name="Program Interested In"
-              defaultValue=""
+              value={selectedBatch}
+              onChange={(event) =>
+                setSelectedBatch(event.target.value)
+              }
               required
             >
-              <option value="">Select program</option>
-              {programs.map((program) => (
-                <option key={program} value={program}>
-                  {program}
+              <option value="">Select batch or class</option>
+              {STUDIO_BATCHES.map((batch) => (
+                <option key={batch} value={batch}>
+                  {batch}
                 </option>
               ))}
             </select>
@@ -325,15 +321,11 @@ export default function PublicIntakeForm({ kind }: { kind: IntakeKind }) {
           )}
 
           {isStudent && (
-            <label className={labelClass}>
-              Preferred Batch
-              <input
-                className={inputClass}
-                name="Preferred Batch"
-                maxLength={100}
-                placeholder="Morning, evening, or preferred time"
-              />
-            </label>
+            <input
+              type="hidden"
+              name="Preferred Batch"
+              value={selectedBatch}
+            />
           )}
         </div>
 
