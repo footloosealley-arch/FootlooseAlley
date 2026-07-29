@@ -59,7 +59,7 @@ export const navigation: NavigationItem[] = [
   },
   {
     title: "Memberships",
-    href: "/fee-dues",
+    href: "/memberships",
     icon: CreditCard,
   },
   {
