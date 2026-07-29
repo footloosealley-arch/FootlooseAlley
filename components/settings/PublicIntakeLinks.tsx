@@ -16,7 +16,9 @@ const intakeForms = [
     title: "Enquiry Form",
     description:
       "Share this with prospective students. New responses appear automatically in Enquiries.",
-    url: "https://docs.google.com/forms/d/e/1FAIpQLSerIJcVz-7dJZNLwIQIPB3nAwStOhen39Cu0LA7hdLf0eG8Kw/viewform",
+    url: "/forms/enquiry",
+    backupUrl:
+      "https://docs.google.com/forms/d/e/1FAIpQLSerIJcVz-7dJZNLwIQIPB3nAwStOhen39Cu0LA7hdLf0eG8Kw/viewform",
     icon: ClipboardList,
     iconTone: "bg-blue-100 text-blue-700",
     shareMessage:
@@ -26,7 +28,9 @@ const intakeForms = [
     title: "Student Registration Form",
     description:
       "Share this after joining. Registrations wait for staff approval before becoming students.",
-    url: "https://docs.google.com/forms/d/e/1FAIpQLSe8njgMv7CE2pCBNEWfgUl8v2PgizVeLQ1Iq4ZiAre8NZAJTQ/viewform",
+    url: "/forms/student",
+    backupUrl:
+      "https://docs.google.com/forms/d/e/1FAIpQLSe8njgMv7CE2pCBNEWfgUl8v2PgizVeLQ1Iq4ZiAre8NZAJTQ/viewform",
     icon: UserPlus,
     iconTone: "bg-emerald-100 text-emerald-700",
     shareMessage:
@@ -35,9 +39,13 @@ const intakeForms = [
 ] as const;
 
 export default function PublicIntakeLinks() {
+  function getAbsoluteUrl(path: string) {
+    return new URL(path, window.location.origin).toString();
+  }
+
   async function copyLink(title: string, url: string) {
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(getAbsoluteUrl(url));
       toast.success(`${title} link copied.`);
     } catch {
       toast.error("Could not copy the form link. Please open the form and copy its address.");
@@ -45,11 +53,13 @@ export default function PublicIntakeLinks() {
   }
 
   function openForm(url: string) {
-    window.open(url, "_blank", "noopener,noreferrer");
+    window.open(getAbsoluteUrl(url), "_blank", "noopener,noreferrer");
   }
 
   function shareOnWhatsApp(message: string, url: string) {
-    const text = encodeURIComponent(`${message}\n${url}`);
+    const text = encodeURIComponent(
+      `${message}\n${getAbsoluteUrl(url)}`,
+    );
     window.open(`https://wa.me/?text=${text}`, "_blank", "noopener,noreferrer");
   }
 
@@ -60,7 +70,7 @@ export default function PublicIntakeLinks() {
           Public Forms
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Open, copy, or share the official Footloose Alley intake forms.
+          Open, copy, or share the vibrant forms built directly into the Footloose Alley app.
         </p>
       </div>
 
@@ -110,6 +120,15 @@ export default function PublicIntakeLinks() {
                   WhatsApp
                 </Button>
               </div>
+
+              <a
+                href={form.backupUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex text-xs font-medium text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
+              >
+                Open Google Forms backup
+              </a>
             </article>
           );
         })}
