@@ -1,9 +1,6 @@
 import { supabase } from "@/lib/supabase";
 
-import type {
-  MembershipPlan,
-  MembershipStatus,
-} from "@/types/database";
+import type { MembershipStatus } from "@/types/database";
 
 export interface MembershipDashboardStudent {
   id: number;
@@ -125,26 +122,24 @@ class MembershipDashboardService {
   async getStudents(): Promise<MembershipDashboardStudent[]> {
     const { data, error } = await supabase
       .from("Students")
-      .select(
-        [
-          "id",
-          "Name",
-          "Phone",
-          "Program",
-          "Status",
-          "student_code",
-          "membership_plan",
-          "membership_start_date",
-          "membership_end_date",
-          "membership_status",
-          "membership_frozen",
-          "membership_freeze_started_at",
-          "membership_freeze_reason",
-          "Fees",
-          "Fees_due",
-          "fee_status",
-        ].join(",")
-      )
+      .select(`
+        id,
+        Name,
+        Phone,
+        Program,
+        Status,
+        student_code,
+        membership_plan,
+        membership_start_date,
+        membership_end_date,
+        membership_status,
+        membership_frozen,
+        membership_freeze_started_at,
+        membership_freeze_reason,
+        Fees,
+        Fees_due,
+        fee_status
+      `)
       .order("Name", { ascending: true });
 
     if (error) {
@@ -154,14 +149,6 @@ class MembershipDashboardService {
     return (data ?? []) as MembershipDashboardStudent[];
   }
 
-  isKnownPlan(value: string | null): value is MembershipPlan {
-    return (
-      value === "Monthly" ||
-      value === "3 Months" ||
-      value === "6 Months" ||
-      value === "Yearly"
-    );
-  }
 }
 
 export const membershipDashboardService =
