@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLatestAsync } from "@/hooks/useLatestAsync";
+import { useCallback, useMemo, useState } from "react";
 import {
   CalendarCheck2,
   CalendarClock,
@@ -162,34 +163,30 @@ function SummaryCard({
 
 export default function TrialOperationsDashboard() {
   const [trials, setTrials] = useState<TrialEnquiry[]>([]);
-  const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState<TrialFilter>("All");
   const [statusFilter, setStatusFilter] = useState<TrialStatus | "All">("All");
 
-  const loadTrials = useCallback(async () => {
-    setLoading(true);
+  const fetchTrials = useCallback(async () => {
     const { data, error } = await supabase
       .from("Enquiries")
-      .select(
-        "id,Name,Phone,Email,Program,Status,Follow_up_date,Notes,assigned_to,trial_date,trial_status,trial_outcome,trial_notes,converted_student_id,created_at"
-      )
+      .select("id,Name,Phone,Email,Program,Status,Follow_up_date,Notes,assigned_to,trial_date,trial_status,trial_outcome,trial_notes,converted_student_id,created_at")
       .not("trial_date", "is", null)
       .order("trial_date", { ascending: true });
-
-    if (error) {
-      toast.error(error.message || "Unable to load trial bookings.");
-      setTrials([]);
-    } else {
-      setTrials((data ?? []) as TrialEnquiry[]);
-    }
-    setLoading(false);
+    if (error) throw error;
+    return (data ?? []) as TrialEnquiry[];
   }, []);
-
-  useEffect(() => {
-    void loadTrials();
-  }, [loadTrials]);
+  const commitTrials = useCallback((result: TrialEnquiry[]) => setTrials(result), []);
+  const handleTrialsError = useCallback((error: unknown) => {
+    toast.error(error instanceof Error ? error.message : "Unable to load trial bookings.");
+    setTrials([]);
+  }, []);
+  const { loading, refresh: loadTrials } = useLatestAsync({
+    fetchData: fetchTrials,
+    onSuccess: commitTrials,
+    onError: handleTrialsError,
+  });
 
   async function updateTrial(
     trial: TrialEnquiry,

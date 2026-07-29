@@ -2,10 +2,10 @@
 
 import {
   useCallback,
-  useEffect,
   useMemo,
   useState,
 } from "react";
+import { useLatestAsync } from "@/hooks/useLatestAsync";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
@@ -151,9 +151,6 @@ function getFollowUpCategory(
 export default function EnquiriesPage() {
   const router = useRouter();
 
-  const [loading, setLoading] =
-    useState(true);
-
   const [saving, setSaving] =
     useState(false);
 
@@ -242,81 +239,33 @@ export default function EnquiriesPage() {
       ...EMPTY_FORM,
     });
 
-  const loadData =
-    useCallback(async () => {
-      setLoading(true);
+  const fetchData = useCallback(async () => {
+    const [enquiryResult, classResult, instructorResult] = await Promise.all([
+      supabase.from("Enquiries").select("*").order("created_at", { ascending: false }),
+      supabase.from("Classes").select("id,class_name").order("class_name", { ascending: true }),
+      supabase.from("Instructors").select("id,name").order("name", { ascending: true }),
+    ]);
 
-      try {
-        const [
-          enquiryResult,
-          classResult,
-          instructorResult,
-        ] = await Promise.all([
-          supabase
-            .from("Enquiries")
-            .select("*")
-            .order("created_at", {
-              ascending: false,
-            }),
+    if (enquiryResult.error) throw enquiryResult.error;
+    return { enquiryResult, classResult, instructorResult };
+  }, []);
 
-          supabase
-            .from("Classes")
-            .select(
-              "id,class_name"
-            )
-            .order("class_name", {
-              ascending: true,
-            }),
+  const commitData = useCallback(({ enquiryResult, classResult, instructorResult }: Awaited<ReturnType<typeof fetchData>>) => {
+    setEnquiries((enquiryResult.data ?? []) as Enquiry[]);
+    if (!classResult.error) setClasses((classResult.data ?? []) as Class[]);
+    if (!instructorResult.error) setInstructors((instructorResult.data ?? []) as Instructor[]);
+  }, []);
 
-          supabase
-            .from("Instructors")
-            .select("id,name")
-            .order("name", {
-              ascending: true,
-            }),
-        ]);
+  const handleLoadError = useCallback((error: unknown) => {
+    console.error("Unable to load enquiries:", error);
+    alert("Unable to load enquiries.");
+  }, []);
 
-        if (enquiryResult.error) {
-          throw enquiryResult.error;
-        }
-
-        setEnquiries(
-          (enquiryResult.data ??
-            []) as Enquiry[]
-        );
-
-        if (!classResult.error) {
-          setClasses(
-            (classResult.data ??
-              []) as Class[]
-          );
-        }
-
-        if (
-          !instructorResult.error
-        ) {
-          setInstructors(
-            (instructorResult.data ??
-              []) as Instructor[]
-          );
-        }
-      } catch (error) {
-        console.error(
-          "Unable to load enquiries:",
-          error
-        );
-
-        alert(
-          "Unable to load enquiries."
-        );
-      } finally {
-        setLoading(false);
-      }
-    }, []);
-
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
+  const { loading, refresh: loadData } = useLatestAsync({
+    fetchData,
+    onSuccess: commitData,
+    onError: handleLoadError,
+  });
 
   const summary = useMemo(() => {
     const active =

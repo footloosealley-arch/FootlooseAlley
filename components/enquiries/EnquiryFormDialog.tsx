@@ -121,15 +121,15 @@ function createFormFromEnquiry(
   };
 }
 
-export default function EnquiryFormDialog({
+function EnquiryFormDialogSession({
   open,
   enquiry,
   onClose,
   onSaved,
 }: EnquiryFormDialogProps) {
   const [form, setForm] =
-    useState<EnquiryFormState>(
-      createEmptyForm()
+    useState<EnquiryFormState>(() =>
+      enquiry ? createFormFromEnquiry(enquiry) : createEmptyForm()
     );
 
   const [saving, setSaving] =
@@ -139,22 +139,6 @@ export default function EnquiryFormDialog({
     useState<string | null>(null);
 
   const isEditing = Boolean(enquiry);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    if (enquiry) {
-      setForm(
-        createFormFromEnquiry(enquiry)
-      );
-    } else {
-      setForm(createEmptyForm());
-    }
-
-    setError(null);
-  }, [open, enquiry]);
 
   useEffect(() => {
     if (!open) {
@@ -773,4 +757,10 @@ export default function EnquiryFormDialog({
       </div>
     </div>
   );
+}
+
+export default function EnquiryFormDialog(props: EnquiryFormDialogProps) {
+  if (!props.open) return null;
+
+  return <EnquiryFormDialogSession {...props} key={props.enquiry?.id ?? "new"} />;
 }

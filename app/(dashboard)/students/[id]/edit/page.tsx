@@ -93,7 +93,7 @@ export default function EditStudentPage() {
     () => studentId
       ? studentsService.getStudentById(studentId)
       : Promise.resolve(null),
-    [studentId]
+    studentId
   );
 
   const initialValues = useMemo(

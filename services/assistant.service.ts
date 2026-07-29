@@ -378,10 +378,13 @@ class AssistantService {
       insights.push({
         id: "renewal-risk",
         type: "Renewal",
-        priority: renewals.some((renewal) =>
-          students.find((student) => student.id === renewal.id)?.membership_end_date! <=
-          inSevenDays
-        )
+        priority: renewals.some((renewal) => {
+          const membershipEndDate = students.find(
+            (student) => student.id === renewal.id
+          )?.membership_end_date;
+
+          return Boolean(membershipEndDate && membershipEndDate <= inSevenDays);
+        })
           ? "High"
           : "Medium",
         title: `${renewals.length} membership renewal${renewals.length === 1 ? "" : "s"} approaching`,

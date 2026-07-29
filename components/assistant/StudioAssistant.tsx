@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLatestAsync } from "@/hooks/useLatestAsync";
+import { useCallback, useMemo, useState } from "react";
 import {
   AlertTriangle,
   Bot,
@@ -93,27 +94,22 @@ function MetricCard({
 
 export default function StudioAssistant() {
   const [snapshot, setSnapshot] = useState<AssistantSnapshot | null>(null);
-  const [loading, setLoading] = useState(true);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<AssistantAnswer | null>(null);
 
-  const loadSnapshot = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await assistantService.getSnapshot();
-      setSnapshot(result);
-      setAnswer(null);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to load the assistant.");
-      setSnapshot(null);
-    } finally {
-      setLoading(false);
-    }
+  const commitSnapshot = useCallback((result: AssistantSnapshot) => {
+    setSnapshot(result);
+    setAnswer(null);
   }, []);
-
-  useEffect(() => {
-    void loadSnapshot();
-  }, [loadSnapshot]);
+  const handleSnapshotError = useCallback((error: unknown) => {
+    toast.error(error instanceof Error ? error.message : "Unable to load the assistant.");
+    setSnapshot(null);
+  }, []);
+  const { loading, refresh: loadSnapshot } = useLatestAsync({
+    fetchData: assistantService.getSnapshot,
+    onSuccess: commitSnapshot,
+    onError: handleSnapshotError,
+  });
 
   function ask(value = question) {
     if (!snapshot || !value.trim()) return;

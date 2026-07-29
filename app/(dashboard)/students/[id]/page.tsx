@@ -108,9 +108,7 @@ export default function StudentProfilePage() {
         studentId
       );
     },
-    [
-      studentId,
-    ]
+    studentId
   );
 
   if (loading) {

@@ -200,10 +200,8 @@ export default function FeeDueFormDialog({
     Boolean(feeDue);
 
   const [form, setForm] =
-    useState<FeeDueFormState>(
-      createEmptyForm(
-        defaultStudentId
-      )
+    useState<FeeDueFormState>(() =>
+      feeDue ? createEditForm(feeDue) : createEmptyForm(defaultStudentId)
     );
 
   const [error, setError] =
@@ -231,34 +229,6 @@ export default function FeeDueFormDialog({
           )
       );
     }, [students]);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    setError("");
-    setFieldErrors({});
-
-    if (feeDue) {
-      setForm(
-        createEditForm(
-          feeDue
-        )
-      );
-      return;
-    }
-
-    setForm(
-      createEmptyForm(
-        defaultStudentId
-      )
-    );
-  }, [
-    open,
-    feeDue,
-    defaultStudentId,
-  ]);
 
   useEffect(() => {
     if (!open) {

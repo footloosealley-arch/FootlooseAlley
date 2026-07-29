@@ -7,6 +7,8 @@ import {
   useState,
 } from "react";
 
+import { useLatestAsync } from "@/hooks/useLatestAsync";
+
 import FeeDueDashboard from "@/components/fee-dues/FeeDueDashboard";
 import FeeDueFormDialog, {
   FeeDueStudentOption,
@@ -218,9 +220,6 @@ export default function FeeDuesPage() {
   const [students, setStudents] =
     useState<StudentDatabaseRow[]>([]);
 
-  const [loading, setLoading] =
-    useState(true);
-
   const [
     actionLoading,
     setActionLoading,
@@ -321,46 +320,31 @@ export default function FeeDuesPage() {
       );
     }, []);
 
-  const loadPageData = useCallback(
-    async (showLoader = true) => {
-      if (showLoader) {
-        setLoading(true);
-      }
+  const fetchPageData = useCallback(async () => {
+    const [loadedFeeDues, loadedStudents] = await Promise.all([
+      feeDuesService.getFeeDues(),
+      loadStudents(),
+    ]);
+    return { loadedFeeDues, loadedStudents };
+  }, [loadStudents]);
 
-      try {
-        const [
-          loadedFeeDues,
-          loadedStudents,
-        ] = await Promise.all([
-          feeDuesService.getFeeDues(),
-          loadStudents(),
-        ]);
+  const commitPageData = useCallback(({ loadedFeeDues, loadedStudents }: Awaited<ReturnType<typeof fetchPageData>>) => {
+    setStudents(loadedStudents);
+    setFeeDues(mergeFeeDuesWithStudents(loadedFeeDues, loadedStudents));
+  }, []);
 
-        setStudents(loadedStudents);
+  const handlePageLoadError = useCallback((loadError: unknown) => {
+    showToast(
+      "error",
+      loadError instanceof Error ? loadError.message : "Unable to load fee due data."
+    );
+  }, [showToast]);
 
-        setFeeDues(
-          mergeFeeDuesWithStudents(
-            loadedFeeDues,
-            loadedStudents
-          )
-        );
-      } catch (loadError) {
-        showToast(
-          "error",
-          loadError instanceof Error
-            ? loadError.message
-            : "Unable to load fee due data."
-        );
-      } finally {
-        setLoading(false);
-      }
-    },
-    [loadStudents, showToast]
-  );
-
-  useEffect(() => {
-    void loadPageData();
-  }, [loadPageData]);
+  const { loading, refresh: loadPageData } = useLatestAsync({
+    fetchData: fetchPageData,
+    onSuccess: commitPageData,
+    onError: handlePageLoadError,
+  });
 
   const studentOptions =
     useMemo<FeeDueStudentOption[]>(
@@ -772,7 +756,7 @@ export default function FeeDuesPage() {
             handleAddFeeDue
           }
           onRefresh={() =>
-            void loadPageData(false)
+            void loadPageData()
           }
         />
 
@@ -801,6 +785,7 @@ export default function FeeDuesPage() {
       </div>
 
       <FeeDueFormDialog
+        key={`fee-due-form-${formDialogOpen}-${selectedFeeDue?.id ?? "new"}`}
         open={formDialogOpen}
         students={studentOptions}
         feeDue={selectedFeeDue}
@@ -814,6 +799,7 @@ export default function FeeDuesPage() {
       />
 
       <MarkFeeDuePaidDialog
+        key={`fee-due-paid-${paidDialogOpen}-${selectedFeeDue?.id ?? "none"}`}
         open={paidDialogOpen}
         feeDue={selectedFeeDue}
         onClose={() => {
