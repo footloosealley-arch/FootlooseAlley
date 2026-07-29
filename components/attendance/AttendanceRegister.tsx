@@ -41,6 +41,8 @@ type StatusMap = Record<
 
 type RemarksMap = Record<number, string>;
 
+type AttendanceGrouping = "Batch" | "Class";
+
 function getLocalDateString() {
   const date = new Date();
 
@@ -94,7 +96,15 @@ function getInitials(name: string | null) {
 }
 
 export default function AttendanceRegister() {
+  const [
+    attendanceGrouping,
+    setAttendanceGrouping,
+  ] = useState<AttendanceGrouping>("Batch");
+
   const [selectedDate, setSelectedDate] =
+    useState("");
+
+  const [selectedBatch, setSelectedBatch] =
     useState("");
 
   const [selectedClassId, setSelectedClassId] =
@@ -110,6 +120,10 @@ export default function AttendanceRegister() {
 
   const [classes, setClasses] = useState<
     AttendanceClass[]
+  >([]);
+
+  const [batches, setBatches] = useState<
+    string[]
   >([]);
 
   const [instructors, setInstructors] =
@@ -188,15 +202,24 @@ export default function AttendanceRegister() {
         setError(null);
 
         const [
+          batchList,
           classList,
           instructorList,
         ] = await Promise.all([
+          attendanceService.getBatches(),
           attendanceService.getClasses(),
           attendanceService.getInstructors(),
         ]);
 
+        setBatches(batchList);
         setClasses(classList);
         setInstructors(instructorList);
+
+        if (batchList.length > 0) {
+          setSelectedBatch((current) =>
+            current || batchList[0]
+          );
+        }
 
         if (classList.length > 0) {
           const firstClass = classList[0];
@@ -241,9 +264,15 @@ export default function AttendanceRegister() {
 
   const loadAttendance =
     useCallback(async () => {
+      const hasSelectedGroup =
+        attendanceGrouping === "Batch"
+          ? Boolean(selectedBatch)
+          : Boolean(selectedClassId);
+
       if (
         !selectedDate ||
-        !selectedClassId
+        !selectedClassId ||
+        !hasSelectedGroup
       ) {
         setStudents([]);
         setStatuses({});
@@ -267,9 +296,13 @@ export default function AttendanceRegister() {
           studentList,
           attendanceList,
         ] = await Promise.all([
-          attendanceService.getStudentsForClass(
-            classId
-          ),
+          attendanceGrouping === "Batch"
+            ? attendanceService.getStudentsForBatch(
+                selectedBatch
+              )
+            : attendanceService.getStudentsForClass(
+                classId
+              ),
           attendanceService.getAttendance(
             selectedDate,
             classId
@@ -278,6 +311,9 @@ export default function AttendanceRegister() {
 
         setStudents(studentList);
 
+        const studentIds = new Set(
+          studentList.map((student) => student.id)
+        );
         const nextStatuses: StatusMap = {};
         const nextRemarks: RemarksMap = {};
 
@@ -288,6 +324,10 @@ export default function AttendanceRegister() {
 
         for (const record of attendanceList) {
           if (record.student_id === null) {
+            continue;
+          }
+
+          if (!studentIds.has(record.student_id)) {
             continue;
           }
 
@@ -345,6 +385,8 @@ export default function AttendanceRegister() {
         setLoadingAttendance(false);
       }
     }, [
+      attendanceGrouping,
+      selectedBatch,
       selectedClassId,
       selectedDate,
       selectedInstructorId,
@@ -455,9 +497,21 @@ export default function AttendanceRegister() {
       return;
     }
 
+    if (
+      attendanceGrouping === "Batch" &&
+      !selectedBatch
+    ) {
+      setError(
+        "Please select a batch."
+      );
+      return;
+    }
+
     if (!selectedClassId) {
       setError(
-        "Please select a class."
+        attendanceGrouping === "Batch"
+          ? "Please select the session class."
+          : "Please select a class."
       );
       return;
     }
@@ -515,7 +569,8 @@ export default function AttendanceRegister() {
           session_name:
             sessionName.trim() || null,
           marked_at: markedAt,
-          attendance_mode: "Manual",
+          attendance_mode:
+            attendanceGrouping,
         }))
       );
 
@@ -641,7 +696,53 @@ export default function AttendanceRegister() {
           </h2>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mb-4 rounded-xl border bg-muted/30 p-3">
+          <p className="mb-2 text-sm font-medium">
+            Mark attendance by
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            {(["Batch", "Class"] as const).map(
+              (grouping) => (
+                <Button
+                  key={grouping}
+                  type="button"
+                  size="sm"
+                  variant={
+                    attendanceGrouping ===
+                    grouping
+                      ? "default"
+                      : "outline"
+                  }
+                  onClick={() => {
+                    setAttendanceGrouping(
+                      grouping
+                    );
+                    setSuccess(null);
+                    setError(null);
+                  }}
+                  disabled={saving}
+                >
+                  {grouping}
+                </Button>
+              )
+            )}
+          </div>
+
+          <p className="mt-2 text-xs text-muted-foreground">
+            {attendanceGrouping === "Batch"
+              ? "Batch controls which active students appear. Session Class is still saved for reports."
+              : "Class mode shows only active students assigned directly to the selected class."}
+          </p>
+        </div>
+
+        <div
+          className={`grid gap-4 md:grid-cols-2 ${
+            attendanceGrouping === "Batch"
+              ? "xl:grid-cols-5"
+              : "xl:grid-cols-4"
+          }`}
+        >
           <div className="space-y-2">
             <label
               htmlFor="attendanceDate"
@@ -664,12 +765,52 @@ export default function AttendanceRegister() {
             />
           </div>
 
+          {attendanceGrouping === "Batch" && (
+            <div className="space-y-2">
+              <label
+                htmlFor="attendanceBatch"
+                className="text-sm font-medium"
+              >
+                Batch
+              </label>
+
+              <select
+                id="attendanceBatch"
+                value={selectedBatch}
+                onChange={(event) => {
+                  setSelectedBatch(
+                    event.target.value
+                  );
+                  setSuccess(null);
+                  setError(null);
+                }}
+                disabled={saving}
+                className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/50"
+              >
+                <option value="">
+                  Select batch
+                </option>
+
+                {batches.map((batch) => (
+                  <option
+                    key={batch}
+                    value={batch}
+                  >
+                    {batch}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="space-y-2">
             <label
               htmlFor="attendanceClass"
               className="text-sm font-medium"
             >
-              Class
+              {attendanceGrouping === "Batch"
+                ? "Session Class"
+                : "Class"}
             </label>
 
             <select
@@ -778,6 +919,18 @@ export default function AttendanceRegister() {
 
         {selectedClass && (
           <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 rounded-lg bg-muted/40 px-4 py-3 text-sm">
+            {attendanceGrouping === "Batch" &&
+              selectedBatch && (
+                <span>
+                  <span className="text-muted-foreground">
+                    Batch:
+                  </span>{" "}
+                  <span className="font-medium">
+                    {selectedBatch}
+                  </span>
+                </span>
+              )}
+
             <span>
               <span className="text-muted-foreground">
                 Program:
@@ -919,17 +1072,34 @@ export default function AttendanceRegister() {
               </span>
             </div>
           </div>
+        ) : attendanceGrouping === "Batch" &&
+          !selectedBatch ? (
+          <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
+            <Users className="mb-3 h-10 w-10 text-muted-foreground/50" />
+
+            <h3 className="font-medium">
+              Select a batch
+            </h3>
+
+            <p className="mt-1 text-sm text-muted-foreground">
+              Choose a batch to load its
+              active students.
+            </p>
+          </div>
         ) : !selectedClassId ? (
           <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
             <Users className="mb-3 h-10 w-10 text-muted-foreground/50" />
 
             <h3 className="font-medium">
-              Select a class
+              {attendanceGrouping === "Batch"
+                ? "Select a session class"
+                : "Select a class"}
             </h3>
 
             <p className="mt-1 text-sm text-muted-foreground">
-              Choose a class to load its
-              students.
+              {attendanceGrouping === "Batch"
+                ? "The session class is saved with this batch attendance for reporting."
+                : "Choose a class to load its students."}
             </p>
           </div>
         ) : students.length === 0 ? (
@@ -941,10 +1111,9 @@ export default function AttendanceRegister() {
             </h3>
 
             <p className="mt-1 max-w-md text-sm text-muted-foreground">
-              No active students are
-              assigned to this class. Assign
-              students to the class from the
-              Students module first.
+              {attendanceGrouping === "Batch"
+                ? "No active students are assigned to this batch. Add a batch to students from the Students module first."
+                : "No active students are assigned to this class. Assign students to the class from the Students module first."}
             </p>
           </div>
         ) : (

@@ -132,6 +132,49 @@ function normalizeAttendanceStatus(
 }
 
 export const attendanceService = {
+  async getBatches(): Promise<string[]> {
+    const { data, error } = await supabase
+      .from("Students")
+      .select("batch,Status")
+      .not("batch", "is", null)
+      .order("batch", {
+        ascending: true,
+      });
+
+    if (error) {
+      throw new Error(
+        getErrorMessage(
+          error,
+          "Unable to load student batches."
+        )
+      );
+    }
+
+    const batchRows = (data ?? []) as unknown as {
+      batch: string | null;
+      Status: string | null;
+    }[];
+    const uniqueBatches = new Map<string, string>();
+
+    for (const row of batchRows) {
+      const batch = row.batch?.trim();
+
+      if (!batch || !isActiveStatus(row.Status)) {
+        continue;
+      }
+
+      const normalizedBatch = batch.toLowerCase();
+
+      if (!uniqueBatches.has(normalizedBatch)) {
+        uniqueBatches.set(normalizedBatch, batch);
+      }
+    }
+
+    return [...uniqueBatches.values()].sort((left, right) =>
+      left.localeCompare(right)
+    );
+  },
+
   async getClasses(): Promise<
     AttendanceClass[]
   > {
@@ -234,6 +277,47 @@ export const attendanceService = {
         getErrorMessage(
           error,
           "Unable to load students."
+        )
+      );
+    }
+
+    const students =
+      (data ?? []) as AttendanceStudent[];
+
+    return students.filter((student) =>
+      isActiveStatus(student.Status)
+    );
+  },
+
+  async getStudentsForBatch(
+    batch: string
+  ): Promise<AttendanceStudent[]> {
+    const { data, error } = await supabase
+      .from("Students")
+      .select(
+        `
+          id,
+          Name,
+          Phone,
+          Program,
+          Status,
+          photo_url,
+          student_code,
+          batch,
+          class_id,
+          instructor_id
+        `
+      )
+      .eq("batch", batch)
+      .order("Name", {
+        ascending: true,
+      });
+
+    if (error) {
+      throw new Error(
+        getErrorMessage(
+          error,
+          "Unable to load students for this batch."
         )
       );
     }
