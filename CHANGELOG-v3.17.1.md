@@ -5,14 +5,15 @@
 - Simplified Daily Attendance to a batch-only workflow.
 - Batch mode loads every active student assigned to the selected batch.
 - Staff now select only the date, batch, and optional instructor before marking students.
-- Standardized batch choices from the official studio schedule: Fitness, Kids' Weekday Dance Class, Kids' Weekend Dance Class, Adults' Weekend Dance Class, and Adults' Weekend Salsa Class.
-- Aerobics, Zumba, Dance Fitness, Steppers, Strengthening & Toning, and other existing fitness-program labels are automatically grouped under Fitness for attendance, so those students do not need to be edited individually.
-- Updated the public enquiry form, public student registration form, internal student form, and staff enquiry form to use the same batch/class choices.
-- New and edited students, plus converted enquiries, now store the selected batch directly for attendance.
+- Separated courses from batch timings: Fitness is the course, while each weekday and weekend time from the official schedule is a separate batch.
+- Kept Kids' Weekday Dance, Kids' Weekend Dance, Adults' Weekend Dance, and Adults' Weekend Salsa as separate courses with their own scheduled batches.
+- Added multi-batch selection so one student can belong to several Fitness or dance sessions.
+- Updated the public enquiry form, public student registration form, internal student form, student profile, student list, and staff enquiry form for the new course/batch structure.
+- New and edited students store all selected batches once; Daily Attendance then loads them automatically for each selected timing.
 - The selected batch is saved with each new attendance record and used as its reporting session name.
 - Existing attendance history, charts, exports, and intelligence follow-ups remain unchanged.
 - Existing historical class-based attendance remains unchanged and readable.
-- Improved empty-state guidance when a batch has no assigned students.
+- Improved empty-state guidance when a batch has no assigned students. Existing students only need their correct batch timings assigned once.
 
 ## Security maintenance
 

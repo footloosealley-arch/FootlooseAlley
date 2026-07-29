@@ -30,7 +30,11 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 import { studentsService } from "@/services/students.service";
-import { STUDIO_BATCHES } from "@/lib/studio-batches";
+import {
+  getCoursesForBatches,
+  STUDIO_BATCH_OPTIONS,
+  STUDIO_COURSES,
+} from "@/lib/studio-batches";
 
 export type StudentFormData = {
   name: string;
@@ -48,6 +52,7 @@ export type StudentFormData = {
   whatsappEnabled: boolean;
 
   program: string;
+  batchAssignments: string[];
 
   classId: number | null;
   instructorId: number | null;
@@ -75,11 +80,6 @@ type StudentFormProps = {
   onCancel: () => void;
 };
 
-type ClassItem = {
-  id: number;
-  class_name: string | null;
-};
-
 type InstructorItem = {
   id: number;
   name: string | null;
@@ -105,6 +105,7 @@ const defaultValues: StudentFormData = {
   whatsappEnabled: true,
 
   program: "",
+  batchAssignments: [],
 
   classId: null,
   instructorId: null,
@@ -141,10 +142,6 @@ export default function StudentForm({
   const [errors, setErrors] =
     useState<ValidationErrors>({});
 
-  const [classes, setClasses] = useState<
-    ClassItem[]
-  >([]);
-
   const [instructors, setInstructors] =
     useState<InstructorItem[]>([]);
 
@@ -162,19 +159,13 @@ export default function StudentForm({
         setLoadingData(true);
         setDataError(null);
 
-        const [
-          classList,
-          instructorList,
-        ] = await Promise.all([
-          studentsService.getClasses(),
-          studentsService.getInstructors(),
-        ]);
+        const instructorList =
+          await studentsService.getInstructors();
 
         if (!active) {
           return;
         }
 
-        setClasses(classList);
         setInstructors(instructorList);
       } catch (error) {
         console.error(
@@ -207,13 +198,13 @@ export default function StudentForm({
     return (
       form.name.trim() !== "" &&
       form.phone.trim() !== "" &&
-      form.program.trim() !== "" &&
+      form.batchAssignments.length > 0 &&
       form.membershipPlan.trim() !== ""
     );
   }, [
     form.name,
     form.phone,
-    form.program,
+    form.batchAssignments,
     form.membershipPlan,
   ]);
 
@@ -250,9 +241,9 @@ export default function StudentForm({
         "Phone number is required.";
     }
 
-    if (!form.program.trim()) {
-      nextErrors.program =
-        "Batch or class is required.";
+    if (form.batchAssignments.length === 0) {
+      nextErrors.batchAssignments =
+        "Select at least one class batch.";
     }
 
     if (!form.membershipPlan.trim()) {
@@ -287,6 +278,38 @@ export default function StudentForm({
     }
 
     await onSubmit(form);
+  }
+
+  function toggleBatch(
+    batch: string,
+    checked: boolean
+  ) {
+    setForm((previous) => {
+      const batchAssignments = checked
+        ? [...new Set([
+            ...previous.batchAssignments,
+            batch,
+          ])]
+        : previous.batchAssignments.filter(
+            (item) => item !== batch
+          );
+
+      return {
+        ...previous,
+        batchAssignments,
+        program:
+          getCoursesForBatches(
+            batchAssignments
+          ).join(", "),
+      };
+    });
+
+    if (errors.batchAssignments) {
+      setErrors((previous) => ({
+        ...previous,
+        batchAssignments: undefined,
+      }));
+    }
   }
 
   return (
@@ -536,40 +559,64 @@ export default function StudentForm({
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="program">
-                Batch / Class *
-              </Label>
+            <div className="space-y-4 md:col-span-2">
+              <div>
+                <Label>
+                  Classes and Batch Timings *
+                </Label>
 
-              <Select
-                value={form.program}
-                disabled={loading}
-     onValueChange={(value) =>
-  updateField(
-    "program",
-    value ?? ""
-  )
-}
-              >
-                <SelectTrigger id="program">
-                  <SelectValue placeholder="Select batch or class" />
-                </SelectTrigger>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Select every class timing this student may attend.
+                </p>
+              </div>
 
-                <SelectContent>
-                  {STUDIO_BATCHES.map((batch) => (
-                    <SelectItem
-                      key={batch}
-                      value={batch}
-                    >
-                      {batch}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="grid gap-4 lg:grid-cols-2">
+                {STUDIO_COURSES.map((course) => (
+                  <fieldset
+                    key={course}
+                    className="rounded-xl border bg-background/70 p-4"
+                  >
+                    <legend className="px-1 text-sm font-semibold">
+                      {course}
+                    </legend>
 
-              {errors.program && (
+                    <div className="mt-2 space-y-3">
+                      {STUDIO_BATCH_OPTIONS.filter(
+                        (option) =>
+                          option.course === course
+                      ).map((option) => (
+                        <label
+                          key={option.batch}
+                          className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition hover:bg-muted/60"
+                        >
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 size-4 rounded border-gray-300"
+                            checked={form.batchAssignments.includes(
+                              option.batch
+                            )}
+                            disabled={loading}
+                            onChange={(event) =>
+                              toggleBatch(
+                                option.batch,
+                                event.target.checked
+                              )
+                            }
+                          />
+
+                          <span className="text-sm">
+                            {option.schedule}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                ))}
+              </div>
+
+              {errors.batchAssignments && (
                 <p className="text-sm text-destructive">
-                  {errors.program}
+                  {errors.batchAssignments}
                 </p>
               )}
             </div>
@@ -591,45 +638,6 @@ export default function StudentForm({
                   )
                 }
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="classId">
-                Class
-              </Label>
-
-              <Select
-                value={
-                  form.classId === null
-                    ? ""
-                    : String(form.classId)
-                }
-                disabled={loading}
-                onValueChange={(value) =>
-                  updateField(
-                    "classId",
-                    value
-                      ? Number(value)
-                      : null
-                  )
-                }
-              >
-                <SelectTrigger id="classId">
-                  <SelectValue placeholder="Select class" />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {classes.map((item) => (
-                    <SelectItem
-                      key={item.id}
-                      value={String(item.id)}
-                    >
-                      {item.class_name ||
-                        `Class ${item.id}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="space-y-2">

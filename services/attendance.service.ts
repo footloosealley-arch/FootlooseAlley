@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import {
-  getStudioBatch,
-  STUDIO_BATCHES,
+  parseBatchAssignments,
+  STUDIO_BATCH_OPTIONS,
 } from "@/lib/studio-batches";
 
 export type AttendanceStatus =
@@ -128,7 +128,9 @@ function normalizeAttendanceStatus(
 
 export const attendanceService = {
   async getBatches(): Promise<string[]> {
-    return [...STUDIO_BATCHES];
+    return STUDIO_BATCH_OPTIONS.map(
+      (option) => option.batch
+    );
   },
 
   async getInstructors(): Promise<
@@ -204,10 +206,9 @@ export const attendanceService = {
     return students.filter(
       (student) =>
         isActiveStatus(student.Status) &&
-        getStudioBatch(
-          student.batch,
-          student.Program
-        ) === batch
+        parseBatchAssignments(
+          student.batch
+        ).includes(batch)
     );
   },
 

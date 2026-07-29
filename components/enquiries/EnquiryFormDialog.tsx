@@ -24,7 +24,7 @@ import {
   type EnquirySource,
   type EnquiryStatus,
 } from "@/services/enquiries.service";
-import { STUDIO_BATCHES } from "@/lib/studio-batches";
+import { STUDIO_COURSES } from "@/lib/studio-batches";
 
 interface EnquiryFormDialogProps {
   open: boolean;
@@ -50,7 +50,7 @@ interface EnquiryFormState {
 }
 
 const INTEREST_OPTIONS = [
-  ...STUDIO_BATCHES,
+  ...STUDIO_COURSES,
   "Other",
 ] as const;
 

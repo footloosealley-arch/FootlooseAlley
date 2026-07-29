@@ -12,7 +12,12 @@ import {
 
 import BrandLogo from "@/components/branding/BrandLogo";
 import { Button } from "@/components/ui/button";
-import { STUDIO_BATCHES } from "@/lib/studio-batches";
+import {
+  getCoursesForBatches,
+  serializeBatchAssignments,
+  STUDIO_BATCH_OPTIONS,
+  STUDIO_COURSES,
+} from "@/lib/studio-batches";
 
 const genders = [
   "Female",
@@ -47,7 +52,7 @@ export default function PublicIntakeForm({ kind }: { kind: IntakeKind }) {
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [photoName, setPhotoName] = useState("");
-  const [selectedBatch, setSelectedBatch] = useState("");
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -56,6 +61,15 @@ export default function PublicIntakeForm({ kind }: { kind: IntakeKind }) {
     const form = event.currentTarget;
     const formData = new FormData(form);
     const fields: Record<string, string> = {};
+
+    if (selectedOptions.length === 0) {
+      setErrorMessage(
+        isStudent
+          ? "Please select at least one class batch."
+          : "Please select at least one course."
+      );
+      return;
+    }
 
     formData.forEach((value, key) => {
       if (typeof value === "string") {
@@ -143,7 +157,7 @@ export default function PublicIntakeForm({ kind }: { kind: IntakeKind }) {
       );
       form.reset();
       setPhotoName("");
-      setSelectedBatch("");
+      setSelectedOptions([]);
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -153,6 +167,19 @@ export default function PublicIntakeForm({ kind }: { kind: IntakeKind }) {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function toggleOption(
+    option: string,
+    checked: boolean
+  ) {
+    setSelectedOptions((previous) =>
+      checked
+        ? [...new Set([...previous, option])]
+        : previous.filter(
+            (item) => item !== option
+          )
+    );
   }
 
   if (successMessage) {
@@ -283,26 +310,6 @@ export default function PublicIntakeForm({ kind }: { kind: IntakeKind }) {
             </label>
           )}
 
-          <label className={labelClass}>
-            Batch / Class Interested In<RequiredMark />
-            <select
-              className={inputClass}
-              name="Program Interested In"
-              value={selectedBatch}
-              onChange={(event) =>
-                setSelectedBatch(event.target.value)
-              }
-              required
-            >
-              <option value="">Select batch or class</option>
-              {STUDIO_BATCHES.map((batch) => (
-                <option key={batch} value={batch}>
-                  {batch}
-                </option>
-              ))}
-            </select>
-          </label>
-
           {isStudent && (
             <label className={labelClass}>
               Emergency Contact<RequiredMark />
@@ -320,14 +327,110 @@ export default function PublicIntakeForm({ kind }: { kind: IntakeKind }) {
             </label>
           )}
 
-          {isStudent && (
-            <input
-              type="hidden"
-              name="Preferred Batch"
-              value={selectedBatch}
-            />
-          )}
         </div>
+
+        <fieldset className="space-y-4">
+          <legend className={labelClass}>
+            {isStudent
+              ? "Classes and Batch Timings"
+              : "Courses Interested In"}
+            <RequiredMark />
+          </legend>
+
+          {isStudent ? (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {STUDIO_COURSES.map((course) => (
+                <div
+                  key={course}
+                  className="rounded-xl border border-rose-200 bg-white/80 p-4"
+                >
+                  <p className="font-bold text-slate-900">
+                    {course}
+                  </p>
+
+                  <div className="mt-3 space-y-3">
+                    {STUDIO_BATCH_OPTIONS.filter(
+                      (option) =>
+                        option.course === course
+                    ).map((option) => (
+                      <label
+                        key={option.batch}
+                        className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 text-sm text-slate-700"
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 size-4 rounded border-slate-300"
+                          checked={selectedOptions.includes(
+                            option.batch
+                          )}
+                          onChange={(event) =>
+                            toggleOption(
+                              option.batch,
+                              event.target.checked
+                            )
+                          }
+                        />
+
+                        <span>
+                          {option.schedule}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {STUDIO_COURSES.map((course) => (
+                <label
+                  key={course}
+                  className="flex cursor-pointer items-center gap-3 rounded-xl border border-rose-200 bg-white/80 p-4 text-sm font-semibold text-slate-800"
+                >
+                  <input
+                    type="checkbox"
+                    className="size-4 rounded border-slate-300"
+                    checked={selectedOptions.includes(
+                      course
+                    )}
+                    onChange={(event) =>
+                      toggleOption(
+                        course,
+                        event.target.checked
+                      )
+                    }
+                  />
+
+                  {course}
+                </label>
+              ))}
+            </div>
+          )}
+        </fieldset>
+
+        <input
+          type="hidden"
+          name="Program Interested In"
+          value={
+            isStudent
+              ? getCoursesForBatches(
+                  selectedOptions
+                ).join(", ")
+              : selectedOptions.join(", ")
+          }
+        />
+
+        {isStudent && (
+          <input
+            type="hidden"
+            name="Preferred Batch"
+            value={
+              serializeBatchAssignments(
+                selectedOptions
+              ) ?? ""
+            }
+          />
+        )}
 
         {isStudent && (
           <label className={labelClass}>

@@ -536,8 +536,8 @@ export default function AttendanceRegister() {
         </div>
 
         <p className="mb-4 text-sm text-muted-foreground">
-          Select a batch to load all active
-          students in that fitness group.
+          Select a batch timing to load all active
+          students assigned to that session.
         </p>
 
         <div className="grid gap-4 md:grid-cols-3">
@@ -865,11 +865,9 @@ export default function AttendanceRegister() {
                               "Not specified"}
                           </p>
 
-                          {student.batch && (
-                            <p className="text-xs text-muted-foreground">
-                              {student.batch}
-                            </p>
-                          )}
+                          <p className="text-xs text-muted-foreground">
+                            {selectedBatch}
+                          </p>
                         </td>
 
                         <td className="px-4 py-4">

@@ -23,6 +23,9 @@ import {
 
 import MembershipEngine from "@/components/students/MembershipEngine";
 import PrivateStudentPhoto from "@/components/students/PrivateStudentPhoto";
+import {
+  formatBatchAssignments,
+} from "@/lib/studio-batches";
 import type {
   StudentAttendanceRecord,
   StudentProfileData,
@@ -338,7 +341,9 @@ export default function StudentProfile({
                 </span>
                 <span className="inline-flex items-center gap-2">
                   <UsersRound className="h-4 w-4" />
-                  {student.batch ?? "No batch"}
+                  {formatBatchAssignments(
+                    student.batch
+                  )}
                 </span>
                 <span className="inline-flex items-center gap-2">
                   <CalendarDays className="h-4 w-4" />
@@ -531,7 +536,12 @@ function OverviewTab({
         <Panel title="Class & Membership">
           <div className="space-y-4">
             <Row label="Program" value={student.Program} />
-            <Row label="Batch" value={student.batch} />
+            <Row
+              label="Batch timings"
+              value={formatBatchAssignments(
+                student.batch
+              )}
+            />
             <Row label="Plan" value={student.membership_plan} />
             <Row label="Monthly Fee" value={formatCurrency(student.Fees)} />
             <Row label="Class" value={classDetails?.class_name} />

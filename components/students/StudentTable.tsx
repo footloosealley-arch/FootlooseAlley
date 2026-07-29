@@ -13,6 +13,9 @@ import {
 import EmptyState from "@/components/common/EmptyState";
 import LoadingCard from "@/components/common/LoadingCard";
 import PrivateStudentPhoto from "@/components/students/PrivateStudentPhoto";
+import {
+  formatBatchAssignments,
+} from "@/lib/studio-batches";
 import type { Student } from "@/types/database";
 
 interface StudentTableProps {
@@ -213,7 +216,11 @@ export default function StudentTable({ students, loading = false }: StudentTable
                     </td>
                     <td className="px-5 py-4">
                       <p className="font-medium">{student.Program ?? "-"}</p>
-                      <p className="text-xs text-muted-foreground">{student.batch ?? "No batch"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatBatchAssignments(
+                          student.batch
+                        )}
+                      </p>
                     </td>
                     <td className="px-5 py-4">
                       <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${membershipTone(membershipStatus)}`}>

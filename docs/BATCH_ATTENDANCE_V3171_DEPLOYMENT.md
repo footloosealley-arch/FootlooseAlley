@@ -12,16 +12,13 @@ This release adds batch-only attendance, schedule-aligned form choices, and one 
    `supabase/migrations/20260729_v3171_batch_attendance.sql`
 
 5. Open **Attendance**.
-6. Confirm these batches are available:
-   - Fitness
-   - Kids' Weekday Dance Class
-   - Kids' Weekend Dance Class
-   - Adults' Weekend Dance Class
-   - Adults' Weekend Salsa Class
-7. Select **Fitness** and confirm existing active Aerobics, Zumba, Dance Fitness, Steppers, and Strengthening & Toning students load without editing their profiles.
-8. Open the public enquiry and student registration forms and confirm they show the same five choices.
-9. Select another batch and confirm its active students load.
-10. Mark a controlled attendance record and save it.
-11. Refresh and confirm the saved status reloads for the same date and batch.
+6. Confirm Fitness is shown as a course with separate weekday, Saturday, and Sunday timing batches.
+7. Confirm each dance course shows its separate schedule choices.
+8. Open a controlled student and assign two batch timings, then save.
+9. Return to Attendance and confirm the student loads under both selected timings.
+10. Open the public enquiry form and confirm multiple courses can be selected.
+11. Open the public student registration form and confirm multiple batch timings can be selected.
+12. Mark a controlled attendance record and save it.
+13. Refresh and confirm the saved status reloads for the same date and batch.
 
-The migration adds the Attendance batch column, adds a unique index for safe batch attendance upserts, and records the follow-up permission correction. It does not rewrite existing attendance or follow-up data.
+The migration adds the Attendance batch column, adds a unique index for safe batch attendance upserts, and records the follow-up permission correction. It does not rewrite existing attendance or follow-up data. Existing students must have their schedule timings selected once before they appear in a timing-based Attendance register.

@@ -33,6 +33,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useLatestAsync } from "@/hooks/useLatestAsync";
 import { studentIntakeService } from "@/services/student-intake.service";
+import {
+  formatBatchAssignments,
+} from "@/lib/studio-batches";
 
 import type {
   StudentIntakeSubmission,
@@ -415,7 +418,9 @@ export default function StudentIntakePanel({
                         }
                         label="Preferred batch"
                         value={
-                          registration.batch
+                          formatBatchAssignments(
+                            registration.batch
+                          )
                         }
                       />
 
