@@ -13,7 +13,7 @@ export default function PageHeader({ title, description, action }: Props) {
       title={title}
       description={description}
       actions={action}
-      className="mb-8"
+      className="studio-surface studio-glow mb-8 rounded-2xl border border-primary/15 px-5 py-5 sm:px-6"
     />
   );
 }
