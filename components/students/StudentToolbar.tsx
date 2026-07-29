@@ -33,26 +33,29 @@ export default function StudentToolbar({
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
         <button
+          type="button"
           onClick={onRefresh}
-          className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition hover:bg-muted"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition hover:bg-muted"
         >
           <RefreshCw className="h-4 w-4" />
           Refresh
         </button>
 
         <button
+          type="button"
           onClick={onExport}
-          className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition hover:bg-muted"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition hover:bg-muted"
         >
           <Download className="h-4 w-4" />
           Export
         </button>
 
         <button
+          type="button"
           onClick={onAddStudent}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+          className="col-span-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90 sm:col-span-1"
         >
           <Plus className="h-4 w-4" />
           Add Student

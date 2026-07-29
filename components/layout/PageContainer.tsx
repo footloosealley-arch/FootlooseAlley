@@ -6,8 +6,8 @@ interface Props {
 
 export default function PageContainer({ children }: Props) {
   return (
-    <main className="mx-auto w-full max-w-7xl p-6">
+    <div className="mx-auto w-full max-w-[1600px]">
       {children}
-    </main>
+    </div>
   );
 }

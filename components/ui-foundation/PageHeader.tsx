@@ -19,7 +19,7 @@ export default function PageHeader({
   return (
     <header
       className={cn(
-        "flex flex-col gap-5 border-b border-border/70 pb-6 sm:flex-row sm:items-end sm:justify-between",
+        "flex flex-col gap-4 border-b border-border/70 pb-5 sm:gap-5 sm:pb-6 lg:flex-row lg:items-end lg:justify-between",
         className,
       )}
     >
@@ -40,7 +40,9 @@ export default function PageHeader({
       </div>
 
       {actions ? (
-        <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
+        <div className="flex w-full shrink-0 flex-wrap items-center gap-2 [&>*]:min-h-10 [&>*]:flex-1 sm:[&>*]:flex-none lg:w-auto">
+          {actions}
+        </div>
       ) : null}
     </header>
   );
