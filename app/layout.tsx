@@ -16,19 +16,24 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: "/footloose-alley-logo.png",
+        url: "/footloose-alley-app-icon-192.png",
         type: "image/png",
-        sizes: "1024x1024",
+        sizes: "192x192",
+      },
+      {
+        url: "/footloose-alley-app-icon-512.png",
+        type: "image/png",
+        sizes: "512x512",
       },
     ],
     apple: [
       {
-        url: "/footloose-alley-logo.png",
+        url: "/footloose-alley-apple-icon-180.png",
         type: "image/png",
-        sizes: "1024x1024",
+        sizes: "180x180",
       },
     ],
-    shortcut: "/footloose-alley-logo.png",
+    shortcut: "/footloose-alley-app-icon-192.png",
   },
   appleWebApp: {
     capable: true,
