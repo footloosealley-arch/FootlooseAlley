@@ -14,14 +14,20 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ["business", "fitness", "productivity"],
     icons: [
       {
-        src: "/footloose-alley-logo.png",
-        sizes: "1024x1024",
+        src: "/footloose-alley-app-icon-192.png",
+        sizes: "192x192",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/footloose-alley-logo.png",
-        sizes: "1024x1024",
+        src: "/footloose-alley-app-icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/footloose-alley-app-icon-512.png",
+        sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
       },
