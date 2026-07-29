@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import {
   BellRing,
+  Activity,
   Cake,
   CalendarClock,
   CheckCircle2,
@@ -60,6 +61,11 @@ const typeStyles: Record<
     icon: <Cake />,
     badge: "bg-pink-100 text-pink-800",
     border: "border-l-pink-500",
+  },
+  Attendance: {
+    icon: <Activity />,
+    badge: "bg-cyan-100 text-cyan-800",
+    border: "border-l-cyan-500",
   },
 };
 

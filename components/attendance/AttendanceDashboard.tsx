@@ -14,7 +14,7 @@ import AttendanceRegister from "@/components/attendance/AttendanceRegister";
 import AttendanceStreakCard from "@/components/attendance/AttendanceStreakCard";
 import AttendanceSummaryCards, { type AttendanceSummary } from "@/components/attendance/AttendanceSummaryCards";
 import AttendanceTrendChart, { type AttendanceTrendPoint } from "@/components/attendance/AttendanceTrendChart";
-import AtRiskStudents from "@/components/attendance/AtRiskStudents";
+import AttendanceRiskFollowUps from "@/components/attendance/AttendanceRiskFollowUps";
 import TodayAttendanceTable from "@/components/attendance/TodayAttendanceTable";
 import { Button } from "@/components/ui/button";
 import { attendanceHistoryService, type AttendanceHistoryRecord } from "@/services/attendance-history.service";
@@ -92,8 +92,9 @@ export default function AttendanceDashboard() {
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]"><AttendanceTrendChart data={trend} /><TodayAttendanceTable records={todayRecords} /></div>
           <AttendanceCalendar records={records} month={today} />
           <AttendanceHeatmap records={records} today={today} />
+          <AttendanceRiskFollowUps />
           <div className="grid gap-6 xl:grid-cols-2"><AttendanceAnalytics records={records} /><ClassAttendanceView records={records} /></div>
-          <div className="grid gap-6 xl:grid-cols-2"><AttendanceStreakCard records={records} /><AtRiskStudents records={records} today={today} /></div>
+          <AttendanceStreakCard records={records} />
           <AttendanceReportExport records={records} />
         </>
       )}
