@@ -24,6 +24,7 @@ import {
   type EnquirySource,
   type EnquiryStatus,
 } from "@/services/enquiries.service";
+import { STUDIO_COURSES } from "@/lib/studio-batches";
 
 interface EnquiryFormDialogProps {
   open: boolean;
@@ -49,17 +50,7 @@ interface EnquiryFormState {
 }
 
 const INTEREST_OPTIONS = [
-  "Zumba",
-  "Dance Fitness",
-  "Aerobics",
-  "Yoga",
-  "Strength Training",
-  "Personal Training",
-  "Kids Dance",
-  "Hip Hop",
-  "Bollywood Dance",
-  "Contemporary Dance",
-  "Classical Dance",
+  ...STUDIO_COURSES,
   "Other",
 ] as const;
 

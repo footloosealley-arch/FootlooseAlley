@@ -11,6 +11,10 @@ import StudentForm, {
 } from "@/components/students/StudentForm";
 import { useAsync } from "@/hooks/useAsync";
 import { studentsService } from "@/services/students.service";
+import {
+  parseBatchAssignments,
+  serializeBatchAssignments,
+} from "@/lib/studio-batches";
 import type { Student } from "@/types/database";
 
 function parseStudentId(value: string | string[] | undefined) {
@@ -36,6 +40,8 @@ function mapInitialValues(student: Student): StudentFormData {
     emergencyContact: student.Emergency_contact ?? "",
     whatsappEnabled: student.whatsapp_enabled ?? false,
     program: student.Program ?? "",
+    batchAssignments:
+      parseBatchAssignments(student.batch),
     classId: student.class_id,
     instructorId: student.instructor_id,
     membershipPlan: student.membership_plan ?? "Monthly",
@@ -67,6 +73,9 @@ function createUpdatePayload(values: StudentFormData): Partial<Student> {
     Emergency_contact: values.emergencyContact.trim() || null,
     whatsapp_enabled: values.whatsappEnabled,
     Program: values.program || null,
+    batch: serializeBatchAssignments(
+      values.batchAssignments
+    ),
     class_id: values.classId,
     instructor_id: values.instructorId,
     membership_plan: values.membershipPlan || null,

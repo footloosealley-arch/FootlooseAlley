@@ -15,6 +15,9 @@ import StudentForm, {
 } from "@/components/students/StudentForm";
 
 import { studentsService } from "@/services/students.service";
+import {
+  serializeBatchAssignments,
+} from "@/lib/studio-batches";
 
 import type { Student } from "@/types/database";
 
@@ -70,7 +73,9 @@ function createStudentPayload(
 
     student_code: null,
 
-    batch: null,
+    batch: serializeBatchAssignments(
+      values.batchAssignments
+    ),
 
     instructor_id:
       values.instructorId ?? null,

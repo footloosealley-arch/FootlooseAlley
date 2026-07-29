@@ -1,4 +1,8 @@
 import { supabase } from "@/lib/supabase";
+import {
+  parseBatchAssignments,
+  STUDIO_BATCH_OPTIONS,
+} from "@/lib/studio-batches";
 
 export type AttendanceStatus =
   | "Present"
@@ -18,17 +22,6 @@ export type AttendanceStudent = {
   instructor_id: number | null;
 };
 
-export type AttendanceClass = {
-  id: number;
-  class_name: string | null;
-  program: string | null;
-  day: string | null;
-  start_time: string | null;
-  end_time: string | null;
-  instructor_id: number | null;
-  status: string | null;
-};
-
 export type AttendanceInstructor = {
   id: number;
   name: string | null;
@@ -44,6 +37,7 @@ export type AttendanceRecord = {
   date: string | null;
   status: string | null;
   class_id: number | null;
+  batch: string | null;
   instructor_id: number | null;
   check_in_time: string | null;
   check_out_time: string | null;
@@ -58,7 +52,8 @@ export type SaveAttendanceItem = {
   student_id: number;
   date: string;
   status: AttendanceStatus;
-  class_id: number;
+  class_id: number | null;
+  batch: string;
   instructor_id: number | null;
   remarks: string | null;
   marked_by: string;
@@ -132,41 +127,9 @@ function normalizeAttendanceStatus(
 }
 
 export const attendanceService = {
-  async getClasses(): Promise<
-    AttendanceClass[]
-  > {
-    const { data, error } = await supabase
-      .from("Classes")
-      .select(
-        `
-          id,
-          class_name,
-          program,
-          day,
-          start_time,
-          end_time,
-          instructor_id,
-          status
-        `
-      )
-      .order("class_name", {
-        ascending: true,
-      });
-
-    if (error) {
-      throw new Error(
-        getErrorMessage(
-          error,
-          "Unable to load classes."
-        )
-      );
-    }
-
-    const classes =
-      (data ?? []) as AttendanceClass[];
-
-    return classes.filter((item) =>
-      isActiveStatus(item.status)
+  async getBatches(): Promise<string[]> {
+    return STUDIO_BATCH_OPTIONS.map(
+      (option) => option.batch
     );
   },
 
@@ -205,8 +168,8 @@ export const attendanceService = {
     );
   },
 
-  async getStudentsForClass(
-    classId: number
+  async getStudentsForBatch(
+    batch: string
   ): Promise<AttendanceStudent[]> {
     const { data, error } = await supabase
       .from("Students")
@@ -224,7 +187,6 @@ export const attendanceService = {
           instructor_id
         `
       )
-      .eq("class_id", classId)
       .order("Name", {
         ascending: true,
       });
@@ -233,7 +195,7 @@ export const attendanceService = {
       throw new Error(
         getErrorMessage(
           error,
-          "Unable to load students."
+          "Unable to load students for this batch."
         )
       );
     }
@@ -241,20 +203,24 @@ export const attendanceService = {
     const students =
       (data ?? []) as AttendanceStudent[];
 
-    return students.filter((student) =>
-      isActiveStatus(student.Status)
+    return students.filter(
+      (student) =>
+        isActiveStatus(student.Status) &&
+        parseBatchAssignments(
+          student.batch
+        ).includes(batch)
     );
   },
 
   async getAttendance(
     date: string,
-    classId: number
+    batch: string
   ): Promise<AttendanceRecord[]> {
     const { data, error } = await supabase
       .from("Attendance")
       .select("*")
       .eq("date", date)
-      .eq("class_id", classId)
+      .eq("batch", batch)
       .order("student_id", {
         ascending: true,
       });
@@ -283,7 +249,7 @@ export const attendanceService = {
       .from("Attendance")
       .upsert(items, {
         onConflict:
-          "student_id,class_id,date",
+          "student_id,date,batch",
       })
       .select("*");
 

@@ -100,7 +100,7 @@ export default function AttendanceDashboard() {
       )}
 
       <section className="space-y-3 border-t pt-8">
-        <div><h2 className="text-xl font-semibold">Daily Attendance Register</h2><p className="text-sm text-muted-foreground">Mark, update, and save attendance for a selected class.</p></div>
+        <div><h2 className="text-xl font-semibold">Daily Attendance Register</h2><p className="text-sm text-muted-foreground">Mark, update, and save attendance for a selected batch timing.</p></div>
         <AttendanceRegister />
       </section>
     </div>
