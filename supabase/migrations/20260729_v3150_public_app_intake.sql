@@ -19,8 +19,8 @@ grant all on table public."Public_Intake_Rate_Limits"
   to service_role;
 
 create or replace function public.allow_public_intake(
-  client_key text,
-  limit_count integer default 8
+  request_key text,
+  max_submissions integer default 8
 )
 returns boolean
 language plpgsql
@@ -30,7 +30,7 @@ as $$
 declare
   allowed boolean;
 begin
-  if client_key is null or length(trim(client_key)) < 16 then
+  if request_key is null or length(trim(request_key)) < 16 then
     return false;
   end if;
 
@@ -44,7 +44,7 @@ begin
     updated_at
   )
   values (
-    trim(client_key),
+    trim(request_key),
     now(),
     1,
     now()
@@ -62,7 +62,7 @@ begin
       else rate_limit.submission_count + 1
     end,
     updated_at = now()
-  returning submission_count <= greatest(limit_count, 1)
+  returning submission_count <= greatest(max_submissions, 1)
   into allowed;
 
   return coalesce(allowed, false);
