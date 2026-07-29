@@ -13,6 +13,7 @@ import {
   Settings,
   MessageCircle,
   Bot,
+  BellRing,
 } from "lucide-react";
 
 export interface NavigationItem {
@@ -61,6 +62,11 @@ export const navigation: NavigationItem[] = [
     title: "Memberships",
     href: "/memberships",
     icon: CreditCard,
+  },
+  {
+    title: "Follow-ups",
+    href: "/follow-ups",
+    icon: BellRing,
   },
   {
     title: "WhatsApp",
