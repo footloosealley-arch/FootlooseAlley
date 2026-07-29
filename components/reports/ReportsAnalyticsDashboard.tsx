@@ -188,10 +188,13 @@ export default function ReportsAnalyticsDashboard() {
     toast.error(error instanceof Error ? error.message : "Unable to load reports.");
     setData(null);
   }, []);
+  const reportRefreshKey =
+    `${range.startDate.length}:${range.startDate}|${range.endDate.length}:${range.endDate}`;
   const { loading, refresh: loadReports } = useLatestAsync({
     fetchData: fetchReports,
     onSuccess: commitReports,
     onError: handleReportsError,
+    refreshKey: reportRefreshKey,
   });
 
   function selectPreset(value: RangePreset) {

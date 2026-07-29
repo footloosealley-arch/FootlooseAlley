@@ -15,14 +15,16 @@ export function useLatestAsync<T>({
   onError,
   refreshKey = null,
 }: UseLatestAsyncOptions<T>) {
-  const callbacksRef = useRef({ fetchData, onSuccess, onError });
+  const callbacksRef = useRef({ fetchData, onSuccess, onError, refreshKey });
   const requestIdRef = useRef(0);
   const mountedRef = useRef(true);
-  const [loading, setLoading] = useState(true);
+  const [settledKey, setSettledKey] = useState<{ value: typeof refreshKey } | null>(null);
+  const [manualPendingKey, setManualPendingKey] =
+    useState<{ value: typeof refreshKey } | null>(null);
 
   useEffect(() => {
-    callbacksRef.current = { fetchData, onSuccess, onError };
-  }, [fetchData, onSuccess, onError]);
+    callbacksRef.current = { fetchData, onSuccess, onError, refreshKey };
+  }, [fetchData, onSuccess, onError, refreshKey]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -42,7 +44,7 @@ export function useLatestAsync<T>({
       })
       .finally(() => {
         if (active && requestId === requestIdRef.current) {
-          setLoading(false);
+          setSettledKey({ value: refreshKey });
         }
       });
 
@@ -55,7 +57,8 @@ export function useLatestAsync<T>({
 
   const refresh = useCallback(async (): Promise<T | null> => {
     const requestId = ++requestIdRef.current;
-    setLoading(true);
+    const requestKey = callbacksRef.current.refreshKey;
+    setManualPendingKey({ value: requestKey });
 
     try {
       const result = await callbacksRef.current.fetchData();
@@ -70,10 +73,17 @@ export function useLatestAsync<T>({
       return null;
     } finally {
       if (mountedRef.current && requestId === requestIdRef.current) {
-        setLoading(false);
+        setSettledKey({ value: requestKey });
+        setManualPendingKey(null);
       }
     }
   }, []);
+
+  const loading =
+    (manualPendingKey !== null &&
+      Object.is(manualPendingKey.value, refreshKey)) ||
+    settledKey === null ||
+    !Object.is(settledKey.value, refreshKey);
 
   return { loading, refresh };
 }
