@@ -42,7 +42,7 @@ export default function AppHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 items-center border-b bg-background/90 px-4 backdrop-blur sm:px-6">
+    <header className="sticky top-0 z-40 flex h-16 items-center border-b border-primary/15 bg-background/85 px-4 shadow-[0_10px_35px_-30px_rgba(180,35,58,0.85)] backdrop-blur-xl sm:px-6">
       <div className="flex min-w-0 items-center gap-3">
         <SidebarTrigger />
         <Separator orientation="vertical" className="h-6" />
@@ -59,7 +59,7 @@ export default function AppHeader() {
           className="flex items-center gap-2 rounded-xl border bg-background p-1.5 pr-2 transition hover:bg-muted"
           aria-expanded={menuOpen}
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-xs font-semibold text-primary-foreground">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary via-rose-600 to-amber-500 text-xs font-semibold text-white shadow-sm">
             {initials}
           </div>
           <div className="hidden max-w-40 text-left md:block">

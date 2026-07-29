@@ -26,7 +26,7 @@ export default function AppShell({ children }: Props) {
           <SidebarInset>
             <AppHeader />
 
-            <main className="min-h-[calc(100vh-64px)] flex-1 bg-muted/20 p-4 sm:p-6">
+            <main className="relative min-h-[calc(100vh-64px)] flex-1 overflow-hidden bg-gradient-to-br from-rose-50/65 via-background to-amber-50/55 p-4 sm:p-6">
               {children}
             </main>
           </SidebarInset>
