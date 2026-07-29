@@ -1,12 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+type RefreshKey =
+  | string
+  | number
+  | boolean
+  | null;
 
 type UseLatestAsyncOptions<T> = {
   fetchData: () => Promise<T>;
   onSuccess: (result: T) => void;
   onError: (error: unknown) => void;
-  refreshKey?: string | number | boolean | null;
+  refreshKey?: RefreshKey;
+};
+
+type ManualPendingRequest = {
+  requestId: number;
+  refreshKey: RefreshKey;
 };
 
 export function useLatestAsync<T>({
@@ -15,36 +31,93 @@ export function useLatestAsync<T>({
   onError,
   refreshKey = null,
 }: UseLatestAsyncOptions<T>) {
-  const callbacksRef = useRef({ fetchData, onSuccess, onError, refreshKey });
+  const callbacksRef = useRef({
+    fetchData,
+    onSuccess,
+    onError,
+    refreshKey,
+  });
+
   const requestIdRef = useRef(0);
   const mountedRef = useRef(true);
-  const [settledKey, setSettledKey] = useState<{ value: typeof refreshKey } | null>(null);
-  const [manualPendingKey, setManualPendingKey] =
-    useState<{ value: typeof refreshKey } | null>(null);
+
+  const [settledKey, setSettledKey] =
+    useState<{
+      value: RefreshKey;
+    } | null>(null);
+
+  const [
+    manualPendingRequest,
+    setManualPendingRequest,
+  ] =
+    useState<ManualPendingRequest | null>(
+      null
+    );
 
   useEffect(() => {
-    callbacksRef.current = { fetchData, onSuccess, onError, refreshKey };
-  }, [fetchData, onSuccess, onError, refreshKey]);
+    callbacksRef.current = {
+      fetchData,
+      onSuccess,
+      onError,
+      refreshKey,
+    };
+  }, [
+    fetchData,
+    onSuccess,
+    onError,
+    refreshKey,
+  ]);
 
   useEffect(() => {
     mountedRef.current = true;
-    const requestId = ++requestIdRef.current;
+
+    const requestId =
+      ++requestIdRef.current;
+
     let active = true;
 
     fetchData()
       .then((result) => {
-        if (active && requestId === requestIdRef.current) {
+        if (
+          active &&
+          requestId ===
+            requestIdRef.current
+        ) {
           onSuccess(result);
         }
       })
       .catch((error: unknown) => {
-        if (active && requestId === requestIdRef.current) {
+        if (
+          active &&
+          requestId ===
+            requestIdRef.current
+        ) {
           onError(error);
         }
       })
       .finally(() => {
-        if (active && requestId === requestIdRef.current) {
-          setSettledKey({ value: refreshKey });
+        if (
+          active &&
+          requestId ===
+            requestIdRef.current
+        ) {
+          setSettledKey({
+            value: refreshKey,
+          });
+
+          setManualPendingRequest(
+            (pendingRequest) => {
+              if (
+                pendingRequest &&
+                pendingRequest.requestId <
+                  requestId
+              ) {
+                return null;
+              }
+
+              return pendingRequest;
+            }
+          );
         }
       });
 
@@ -53,37 +126,87 @@ export function useLatestAsync<T>({
       mountedRef.current = false;
       requestIdRef.current += 1;
     };
-  }, [fetchData, onError, onSuccess, refreshKey]);
+  }, [
+    fetchData,
+    onError,
+    onSuccess,
+    refreshKey,
+  ]);
 
-  const refresh = useCallback(async (): Promise<T | null> => {
-    const requestId = ++requestIdRef.current;
-    const requestKey = callbacksRef.current.refreshKey;
-    setManualPendingKey({ value: requestKey });
+  const refresh = useCallback(
+    async (): Promise<T | null> => {
+      const requestId =
+        ++requestIdRef.current;
 
-    try {
-      const result = await callbacksRef.current.fetchData();
-      if (mountedRef.current && requestId === requestIdRef.current) {
-        callbacksRef.current.onSuccess(result);
+      const requestKey =
+        callbacksRef.current.refreshKey;
+
+      setManualPendingRequest({
+        requestId,
+        refreshKey: requestKey,
+      });
+
+      try {
+        const result =
+          await callbacksRef.current.fetchData();
+
+        if (
+          mountedRef.current &&
+          requestId ===
+            requestIdRef.current
+        ) {
+          callbacksRef.current.onSuccess(
+            result
+          );
+        }
+
+        return result;
+      } catch (error) {
+        if (
+          mountedRef.current &&
+          requestId ===
+            requestIdRef.current
+        ) {
+          callbacksRef.current.onError(
+            error
+          );
+        }
+
+        return null;
+      } finally {
+        if (
+          mountedRef.current &&
+          requestId ===
+            requestIdRef.current
+        ) {
+          setSettledKey({
+            value: requestKey,
+          });
+
+          setManualPendingRequest(null);
+        }
       }
-      return result;
-    } catch (error) {
-      if (mountedRef.current && requestId === requestIdRef.current) {
-        callbacksRef.current.onError(error);
-      }
-      return null;
-    } finally {
-      if (mountedRef.current && requestId === requestIdRef.current) {
-        setSettledKey({ value: requestKey });
-        setManualPendingKey(null);
-      }
-    }
-  }, []);
+    },
+    []
+  );
+
+  const manualRequestIsPending =
+    manualPendingRequest !== null &&
+    Object.is(
+      manualPendingRequest.refreshKey,
+      refreshKey
+    );
 
   const loading =
-    (manualPendingKey !== null &&
-      Object.is(manualPendingKey.value, refreshKey)) ||
+    manualRequestIsPending ||
     settledKey === null ||
-    !Object.is(settledKey.value, refreshKey);
+    !Object.is(
+      settledKey.value,
+      refreshKey
+    );
 
-  return { loading, refresh };
+  return {
+    loading,
+    refresh,
+  };
 }
