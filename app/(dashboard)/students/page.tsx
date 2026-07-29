@@ -14,6 +14,7 @@ import StudentFilters, {
   type StudentFilterValues,
 } from "@/components/students/StudentFilters";
 import StudentPagination from "@/components/students/StudentPagination";
+import StudentIntakePanel from "@/components/students/StudentIntakePanel";
 import StudentTable from "@/components/students/StudentTable";
 import StudentToolbar from "@/components/students/StudentToolbar";
 
@@ -224,6 +225,12 @@ export default function StudentsPage() {
     await refresh();
   }
 
+  async function handleIntakeApproved() {
+    setPage(1);
+
+    await refresh();
+  }
+
   function handlePageChange(
     newPage: number
   ) {
@@ -269,6 +276,12 @@ export default function StudentsPage() {
           <p className="mt-2 text-2xl font-bold">{students.length ? Math.round(students.reduce((sum, student) => sum + Number(student.attendance_percentage ?? 0), 0) / students.length) : 0}%</p>
         </div>
       </div>
+
+      <StudentIntakePanel
+        onStudentCreated={
+          handleIntakeApproved
+        }
+      />
 
       <StudentToolbar
         search={search}
