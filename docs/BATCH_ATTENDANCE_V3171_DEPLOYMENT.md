@@ -1,6 +1,6 @@
 # Batch Attendance v3.17.1 deployment
 
-This release adds batch-first attendance and one database permission patch. It does not require an Edge Function or a new secret.
+This release adds batch-only attendance and one database migration. It does not require an Edge Function or a new secret.
 
 ## After merge
 
@@ -9,11 +9,11 @@ This release adds batch-first attendance and one database permission patch. It d
 3. Run `npm run build`.
 4. In the Supabase SQL Editor, run:
 
-   `supabase/migrations/20260729_v3171_secure_follow_up_permissions.sql`
+   `supabase/migrations/20260729_v3171_batch_attendance.sql`
 
 5. Open **Attendance**.
-6. Confirm **Batch** is selected by default.
-7. Select a batch and confirm its active students load.
-8. Confirm **Class** mode remains available.
+6. Select a batch and confirm its active students load.
+7. Mark a controlled attendance record and save it.
+8. Refresh and confirm the saved status reloads for the same date and batch.
 
-The migration only updates function permissions. It does not change attendance or follow-up data.
+The migration adds the Attendance batch column, adds a unique index for safe batch attendance upserts, and records the follow-up permission correction. It does not rewrite existing attendance or follow-up data.

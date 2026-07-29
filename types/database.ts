@@ -144,6 +144,8 @@ export interface Attendance {
 
   class_id: number | null;
 
+  batch: string | null;
+
   instructor_id: number | null;
 
   check_in_time: string | null;

@@ -28,7 +28,6 @@ import { Button } from "@/components/ui/button";
 import PrivateStudentPhoto from "@/components/students/PrivateStudentPhoto";
 import {
   attendanceService,
-  type AttendanceClass,
   type AttendanceInstructor,
   type AttendanceStatus,
   type AttendanceStudent,
@@ -40,8 +39,6 @@ type StatusMap = Record<
 >;
 
 type RemarksMap = Record<number, string>;
-
-type AttendanceGrouping = "Batch" | "Class";
 
 function getLocalDateString() {
   const date = new Date();
@@ -59,28 +56,6 @@ function getLocalDateString() {
   return `${year}-${month}-${day}`;
 }
 
-function formatClassTime(
-  startTime: string | null,
-  endTime: string | null
-) {
-  if (!startTime && !endTime) {
-    return "";
-  }
-
-  if (startTime && endTime) {
-    return `${startTime.slice(
-      0,
-      5
-    )} - ${endTime.slice(0, 5)}`;
-  }
-
-  return (
-    startTime?.slice(0, 5) ||
-    endTime?.slice(0, 5) ||
-    ""
-  );
-}
-
 function getInitials(name: string | null) {
   if (!name?.trim()) {
     return "S";
@@ -96,31 +71,16 @@ function getInitials(name: string | null) {
 }
 
 export default function AttendanceRegister() {
-  const [
-    attendanceGrouping,
-    setAttendanceGrouping,
-  ] = useState<AttendanceGrouping>("Batch");
-
   const [selectedDate, setSelectedDate] =
     useState("");
 
   const [selectedBatch, setSelectedBatch] =
     useState("");
 
-  const [selectedClassId, setSelectedClassId] =
-    useState("");
-
   const [
     selectedInstructorId,
     setSelectedInstructorId,
   ] = useState("");
-
-  const [sessionName, setSessionName] =
-    useState("");
-
-  const [classes, setClasses] = useState<
-    AttendanceClass[]
-  >([]);
 
   const [batches, setBatches] = useState<
     string[]
@@ -155,16 +115,6 @@ export default function AttendanceRegister() {
 
   const [success, setSuccess] =
     useState<string | null>(null);
-
-  const selectedClass = useMemo(() => {
-    const classId = Number(selectedClassId);
-
-    return (
-      classes.find(
-        (item) => item.id === classId
-      ) ?? null
-    );
-  }, [classes, selectedClassId]);
 
   const presentCount = useMemo(() => {
     return Object.values(statuses).filter(
@@ -203,47 +153,18 @@ export default function AttendanceRegister() {
 
         const [
           batchList,
-          classList,
           instructorList,
         ] = await Promise.all([
           attendanceService.getBatches(),
-          attendanceService.getClasses(),
           attendanceService.getInstructors(),
         ]);
 
         setBatches(batchList);
-        setClasses(classList);
         setInstructors(instructorList);
 
         if (batchList.length > 0) {
           setSelectedBatch((current) =>
             current || batchList[0]
-          );
-        }
-
-        if (classList.length > 0) {
-          const firstClass = classList[0];
-
-          setSelectedClassId((current) =>
-            current ||
-            String(firstClass.id)
-          );
-
-          if (firstClass.instructor_id) {
-            setSelectedInstructorId(
-              (current) =>
-                current ||
-                String(
-                  firstClass.instructor_id
-                )
-            );
-          }
-
-          setSessionName((current) =>
-            current ||
-            firstClass.class_name ||
-            firstClass.program ||
-            ""
           );
         }
       } catch (loadError) {
@@ -264,26 +185,13 @@ export default function AttendanceRegister() {
 
   const loadAttendance =
     useCallback(async () => {
-      const hasSelectedGroup =
-        attendanceGrouping === "Batch"
-          ? Boolean(selectedBatch)
-          : Boolean(selectedClassId);
-
       if (
         !selectedDate ||
-        !selectedClassId ||
-        !hasSelectedGroup
+        !selectedBatch
       ) {
         setStudents([]);
         setStatuses({});
         setRemarks({});
-        return;
-      }
-
-      const classId =
-        Number(selectedClassId);
-
-      if (!Number.isFinite(classId)) {
         return;
       }
 
@@ -296,16 +204,12 @@ export default function AttendanceRegister() {
           studentList,
           attendanceList,
         ] = await Promise.all([
-          attendanceGrouping === "Batch"
-            ? attendanceService.getStudentsForBatch(
-                selectedBatch
-              )
-            : attendanceService.getStudentsForClass(
-                classId
-              ),
+          attendanceService.getStudentsForBatch(
+            selectedBatch
+          ),
           attendanceService.getAttendance(
             selectedDate,
-            classId
+            selectedBatch
           ),
         ]);
 
@@ -354,14 +258,6 @@ export default function AttendanceRegister() {
             );
           }
 
-          if (
-            record.session_name &&
-            !sessionName
-          ) {
-            setSessionName(
-              record.session_name
-            );
-          }
         }
 
         setStatuses(nextStatuses);
@@ -385,12 +281,9 @@ export default function AttendanceRegister() {
         setLoadingAttendance(false);
       }
     }, [
-      attendanceGrouping,
       selectedBatch,
-      selectedClassId,
       selectedDate,
       selectedInstructorId,
-      sessionName,
     ]);
 
   useEffect(() => {
@@ -406,37 +299,6 @@ export default function AttendanceRegister() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadAttendance();
   }, [loadAttendance]);
-
-  function handleClassChange(
-    classIdValue: string
-  ) {
-    setSelectedClassId(classIdValue);
-    setSuccess(null);
-    setError(null);
-
-    const classId = Number(classIdValue);
-
-    const nextClass =
-      classes.find(
-        (item) => item.id === classId
-      ) ?? null;
-
-    if (!nextClass) {
-      return;
-    }
-
-    setSelectedInstructorId(
-      nextClass.instructor_id
-        ? String(nextClass.instructor_id)
-        : ""
-    );
-
-    setSessionName(
-      nextClass.class_name ||
-        nextClass.program ||
-        ""
-    );
-  }
 
   function updateStatus(
     studentId: number,
@@ -497,31 +359,9 @@ export default function AttendanceRegister() {
       return;
     }
 
-    if (
-      attendanceGrouping === "Batch" &&
-      !selectedBatch
-    ) {
+    if (!selectedBatch) {
       setError(
         "Please select a batch."
-      );
-      return;
-    }
-
-    if (!selectedClassId) {
-      setError(
-        attendanceGrouping === "Batch"
-          ? "Please select the session class."
-          : "Please select a class."
-      );
-      return;
-    }
-
-    const classId =
-      Number(selectedClassId);
-
-    if (!Number.isFinite(classId)) {
-      setError(
-        "The selected class is invalid."
       );
       return;
     }
@@ -555,7 +395,8 @@ export default function AttendanceRegister() {
             statuses[
               student.id
             ] as AttendanceStatus,
-          class_id: classId,
+          class_id: null,
+          batch: selectedBatch,
           instructor_id:
             selectedInstructorId
               ? Number(
@@ -566,11 +407,9 @@ export default function AttendanceRegister() {
             remarks[student.id]?.trim() ||
             null,
           marked_by: "Manual",
-          session_name:
-            sessionName.trim() || null,
+          session_name: selectedBatch,
           marked_at: markedAt,
-          attendance_mode:
-            attendanceGrouping,
+          attendance_mode: "Batch",
         }))
       );
 
@@ -696,53 +535,12 @@ export default function AttendanceRegister() {
           </h2>
         </div>
 
-        <div className="mb-4 rounded-xl border bg-muted/30 p-3">
-          <p className="mb-2 text-sm font-medium">
-            Mark attendance by
-          </p>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Select a batch to load all active
+          students in that fitness group.
+        </p>
 
-          <div className="flex flex-wrap gap-2">
-            {(["Batch", "Class"] as const).map(
-              (grouping) => (
-                <Button
-                  key={grouping}
-                  type="button"
-                  size="sm"
-                  variant={
-                    attendanceGrouping ===
-                    grouping
-                      ? "default"
-                      : "outline"
-                  }
-                  onClick={() => {
-                    setAttendanceGrouping(
-                      grouping
-                    );
-                    setSuccess(null);
-                    setError(null);
-                  }}
-                  disabled={saving}
-                >
-                  {grouping}
-                </Button>
-              )
-            )}
-          </div>
-
-          <p className="mt-2 text-xs text-muted-foreground">
-            {attendanceGrouping === "Batch"
-              ? "Batch controls which active students appear. Session Class is still saved for reports."
-              : "Class mode shows only active students assigned directly to the selected class."}
-          </p>
-        </div>
-
-        <div
-          className={`grid gap-4 md:grid-cols-2 ${
-            attendanceGrouping === "Batch"
-              ? "xl:grid-cols-5"
-              : "xl:grid-cols-4"
-          }`}
-        >
+        <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
             <label
               htmlFor="attendanceDate"
@@ -765,90 +563,39 @@ export default function AttendanceRegister() {
             />
           </div>
 
-          {attendanceGrouping === "Batch" && (
-            <div className="space-y-2">
-              <label
-                htmlFor="attendanceBatch"
-                className="text-sm font-medium"
-              >
-                Batch
-              </label>
-
-              <select
-                id="attendanceBatch"
-                value={selectedBatch}
-                onChange={(event) => {
-                  setSelectedBatch(
-                    event.target.value
-                  );
-                  setSuccess(null);
-                  setError(null);
-                }}
-                disabled={saving}
-                className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/50"
-              >
-                <option value="">
-                  Select batch
-                </option>
-
-                {batches.map((batch) => (
-                  <option
-                    key={batch}
-                    value={batch}
-                  >
-                    {batch}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
           <div className="space-y-2">
             <label
-              htmlFor="attendanceClass"
+              htmlFor="attendanceBatch"
               className="text-sm font-medium"
             >
-              {attendanceGrouping === "Batch"
-                ? "Session Class"
-                : "Class"}
+              Batch
             </label>
 
             <select
-              id="attendanceClass"
-              value={selectedClassId}
-              onChange={(event) =>
-                handleClassChange(
+              id="attendanceBatch"
+              value={selectedBatch}
+              onChange={(event) => {
+                setSelectedBatch(
                   event.target.value
-                )
-              }
+                );
+                setSuccess(null);
+                setError(null);
+              }}
               disabled={saving}
               className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/50"
             >
               <option value="">
-                Select class
+                Select batch
               </option>
 
-              {classes.map((item) => {
-                const classTime =
-                  formatClassTime(
-                    item.start_time,
-                    item.end_time
-                  );
-
-                return (
-                  <option
-                    key={item.id}
-                    value={String(item.id)}
-                  >
-                    {item.class_name ||
-                      item.program ||
-                      `Class ${item.id}`}
-                    {classTime
-                      ? ` — ${classTime}`
-                      : ""}
-                  </option>
-                );
-              })}
+              {batches.map((batch) => (
+                <option
+                  key={batch}
+                  value={batch}
+                >
+                  {batch}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -893,74 +640,15 @@ export default function AttendanceRegister() {
             </select>
           </div>
 
-          <div className="space-y-2">
-            <label
-              htmlFor="sessionName"
-              className="text-sm font-medium"
-            >
-              Session Name
-            </label>
-
-            <input
-              id="sessionName"
-              type="text"
-              value={sessionName}
-              onChange={(event) =>
-                setSessionName(
-                  event.target.value
-                )
-              }
-              placeholder="Example: Morning Zumba"
-              disabled={saving}
-              className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-3 focus:ring-ring/50"
-            />
-          </div>
         </div>
 
-        {selectedClass && (
-          <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 rounded-lg bg-muted/40 px-4 py-3 text-sm">
-            {attendanceGrouping === "Batch" &&
-              selectedBatch && (
-                <span>
-                  <span className="text-muted-foreground">
-                    Batch:
-                  </span>{" "}
-                  <span className="font-medium">
-                    {selectedBatch}
-                  </span>
-                </span>
-              )}
-
-            <span>
-              <span className="text-muted-foreground">
-                Program:
-              </span>{" "}
-              <span className="font-medium">
-                {selectedClass.program ||
-                  "Not specified"}
-              </span>
-            </span>
-
-            <span>
-              <span className="text-muted-foreground">
-                Day:
-              </span>{" "}
-              <span className="font-medium">
-                {selectedClass.day ||
-                  "Not specified"}
-              </span>
-            </span>
-
-            <span>
-              <span className="text-muted-foreground">
-                Time:
-              </span>{" "}
-              <span className="font-medium">
-                {formatClassTime(
-                  selectedClass.start_time,
-                  selectedClass.end_time
-                ) || "Not specified"}
-              </span>
+        {selectedBatch && (
+          <div className="mt-4 rounded-lg bg-muted/40 px-4 py-3 text-sm">
+            <span className="text-muted-foreground">
+              Selected batch:
+            </span>{" "}
+            <span className="font-semibold">
+              {selectedBatch}
             </span>
           </div>
         )}
@@ -1072,8 +760,7 @@ export default function AttendanceRegister() {
               </span>
             </div>
           </div>
-        ) : attendanceGrouping === "Batch" &&
-          !selectedBatch ? (
+        ) : !selectedBatch ? (
           <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
             <Users className="mb-3 h-10 w-10 text-muted-foreground/50" />
 
@@ -1086,22 +773,6 @@ export default function AttendanceRegister() {
               active students.
             </p>
           </div>
-        ) : !selectedClassId ? (
-          <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
-            <Users className="mb-3 h-10 w-10 text-muted-foreground/50" />
-
-            <h3 className="font-medium">
-              {attendanceGrouping === "Batch"
-                ? "Select a session class"
-                : "Select a class"}
-            </h3>
-
-            <p className="mt-1 text-sm text-muted-foreground">
-              {attendanceGrouping === "Batch"
-                ? "The session class is saved with this batch attendance for reporting."
-                : "Choose a class to load its students."}
-            </p>
-          </div>
         ) : students.length === 0 ? (
           <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
             <Users className="mb-3 h-10 w-10 text-muted-foreground/50" />
@@ -1111,9 +782,10 @@ export default function AttendanceRegister() {
             </h3>
 
             <p className="mt-1 max-w-md text-sm text-muted-foreground">
-              {attendanceGrouping === "Batch"
-                ? "No active students are assigned to this batch. Add a batch to students from the Students module first."
-                : "No active students are assigned to this class. Assign students to the class from the Students module first."}
+              No active students are assigned
+              to this batch. Add or update the
+              student batch from the Students
+              module first.
             </p>
           </div>
         ) : (
