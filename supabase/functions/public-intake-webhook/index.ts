@@ -453,8 +453,8 @@ Deno.serve(async (request) => {
     const clientKey = await getClientKey(request);
     const { data: allowed, error: rateLimitError } =
       await supabase.rpc("allow_public_intake", {
-        client_key: clientKey,
-        limit_count: 8,
+        request_key: clientKey,
+        max_submissions: 8,
       });
 
     if (rateLimitError) {
