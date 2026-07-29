@@ -20,7 +20,6 @@ import RecentEnquiries from "@/components/dashboard/RecentEnquiries";
 import RecentPayments from "@/components/dashboard/RecentPayments";
 import ReceptionActivity from "@/components/dashboard/ReceptionActivity";
 import UpcomingRenewals from "@/components/dashboard/UpcomingRenewals";
-import PageHeader from "@/components/layout/PageHeader";
 import { useAsync } from "@/hooks/useAsync";
 import { dashboardService } from "@/services/dashboard.service";
 
@@ -54,26 +53,32 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-3xl border bg-gradient-to-br from-primary/10 via-background to-orange-50 p-6 shadow-sm sm:p-8">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+      <section className="studio-glow relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary via-rose-600 to-amber-500 p-6 text-white shadow-xl sm:p-8">
+        <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/15 blur-2xl" />
+        <div className="absolute -bottom-24 left-1/3 h-48 w-48 rounded-full bg-amber-300/25 blur-3xl" />
+        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="mb-2 text-sm font-semibold text-primary">{getLongDate()}</p>
-            <PageHeader
-              title="Reception Dashboard"
-              description={`${getGreeting()} — everything your front desk needs for today.`}
-            />
+            <p className="mb-2 text-sm font-semibold text-amber-100">
+              {getLongDate()}
+            </p>
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Reception Dashboard
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-rose-50 sm:text-base">
+              {getGreeting()} — everything your front desk needs for today.
+            </p>
           </div>
           <button
             type="button"
             onClick={refresh}
             disabled={loading}
-            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border bg-background/90 px-4 text-sm font-medium shadow-sm transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/15 px-4 text-sm font-semibold text-white shadow-sm backdrop-blur transition hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </button>
         </div>
-      </div>
+      </section>
 
       {loading && (
         <>
