@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { attendanceIntelligenceService } from "@/services/attendance-intelligence.service";
 
 export const FOLLOW_UP_TYPES = [
   "Membership",
@@ -6,6 +7,7 @@ export const FOLLOW_UP_TYPES = [
   "Enquiry",
   "Trial",
   "Birthday",
+  "Attendance",
 ] as const;
 
 export type FollowUpType = (typeof FOLLOW_UP_TYPES)[number];
@@ -392,6 +394,26 @@ class DailyFollowUpsService {
           completedAt: null,
         });
       }
+    }
+
+    const attendanceRisks = await attendanceIntelligenceService.getRisks();
+    for (const risk of attendanceRisks) {
+      reminders.push({
+        key: risk.key,
+        type: "Attendance",
+        subjectId: risk.studentId,
+        name: risk.name,
+        phone: risk.phone,
+        title: risk.reason,
+        detail: risk.detail,
+        dueDate: risk.lastPresentDate ?? today,
+        priority: risk.priority === "Urgent" ? "Urgent" : "Today",
+        manageHref: "/attendance",
+        whatsappUrl: risk.whatsappUrl,
+        actionStatus: risk.actionStatus,
+        postponedUntil: risk.postponedUntil,
+        completedAt: risk.completedAt,
+      });
     }
 
     return sortReminders(applyActions(reminders, actions));
