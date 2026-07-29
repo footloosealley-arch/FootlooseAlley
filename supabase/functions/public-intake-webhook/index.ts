@@ -263,7 +263,10 @@ function isAllowedOrigin(origin: string | null): boolean {
 
     return (
       hostname === "footloose-alley.vercel.app" ||
-      hostname.endsWith(".vercel.app") ||
+      (
+        hostname.startsWith("footloose-alley-") &&
+        hostname.endsWith(".vercel.app")
+      ) ||
       hostname === "localhost" ||
       hostname === "127.0.0.1"
     );
