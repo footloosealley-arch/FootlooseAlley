@@ -24,10 +24,10 @@ export default function AppSidebar() {
   const pathname = usePathname();
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b">
+    <Sidebar collapsible="icon" className="border-r border-primary/15 bg-gradient-to-b from-rose-50 via-sidebar to-amber-50/60">
+      <SidebarHeader className="border-b border-primary/15 bg-gradient-to-br from-primary/10 via-transparent to-accent/20">
         <div className="flex items-center gap-3 px-2 py-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-primary/15 bg-white p-1 shadow-md shadow-primary/10">
             <BrandLogo width={40} height={40} className="max-h-full object-contain" />
           </div>
 
@@ -66,6 +66,11 @@ export default function AppSidebar() {
                       render={
                         <Link href={item.href} />
                       }
+                      className={
+                        active
+                          ? "bg-gradient-to-r from-primary to-rose-600 font-semibold text-white shadow-md shadow-primary/20 hover:text-white"
+                          : "hover:bg-primary/10 hover:text-primary"
+                      }
                     >
                       <Icon />
 
@@ -79,7 +84,7 @@ export default function AppSidebar() {
         </SidebarGroup>
               </SidebarContent>
 
-      <SidebarFooter className="border-t">
+      <SidebarFooter className="border-t border-primary/15 bg-gradient-to-r from-primary/5 to-accent/10">
         <div className="space-y-1 px-3 py-4">
           <p className="text-sm font-medium">
             {APP.NAME}
