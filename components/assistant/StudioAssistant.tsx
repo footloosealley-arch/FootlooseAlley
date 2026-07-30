@@ -21,6 +21,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import MessageDraftAssistant from "@/components/assistant/MessageDraftAssistant";
 import {
   assistantService,
   type AssistantAnswer,
@@ -165,6 +166,8 @@ export default function StudioAssistant() {
           </div>
         )}
       </div>
+
+      <MessageDraftAssistant />
 
       {loading ? (
         <div className="rounded-2xl border p-12 text-center text-sm text-muted-foreground">
