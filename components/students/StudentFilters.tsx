@@ -37,16 +37,17 @@ export default function StudentFilters({
   return (
     <div className="mb-6 grid gap-4 rounded-xl border bg-background p-4 shadow-sm md:grid-cols-2 xl:grid-cols-5">
       <div>
-        <label className="mb-2 block text-sm font-medium">
+        <label htmlFor="student-status-filter" className="mb-2 block text-sm font-medium">
           Status
         </label>
 
         <select
+          id="student-status-filter"
           value={filters.status}
           onChange={(e) =>
             onChange("status", e.target.value)
           }
-          className="w-full rounded-lg border bg-background px-3 py-2"
+          className="h-11 w-full rounded-lg border bg-background px-3 md:h-auto md:py-2"
         >
           <option value="">All Status</option>
           <option value="Active">Active</option>
@@ -56,16 +57,17 @@ export default function StudentFilters({
       </div>
 
       <div>
-        <label className="mb-2 block text-sm font-medium">
+        <label htmlFor="student-class-filter" className="mb-2 block text-sm font-medium">
           Class
         </label>
 
         <select
+          id="student-class-filter"
           value={filters.classId}
           onChange={(e) =>
             onChange("classId", e.target.value)
           }
-          className="w-full rounded-lg border bg-background px-3 py-2"
+          className="h-11 w-full rounded-lg border bg-background px-3 md:h-auto md:py-2"
         >
           <option value="">All Classes</option>
 
@@ -81,11 +83,12 @@ export default function StudentFilters({
       </div>
 
       <div>
-        <label className="mb-2 block text-sm font-medium">
+        <label htmlFor="student-instructor-filter" className="mb-2 block text-sm font-medium">
           Instructor
         </label>
 
         <select
+          id="student-instructor-filter"
           value={filters.instructorId}
           onChange={(e) =>
             onChange(
@@ -93,7 +96,7 @@ export default function StudentFilters({
               e.target.value
             )
           }
-          className="w-full rounded-lg border bg-background px-3 py-2"
+          className="h-11 w-full rounded-lg border bg-background px-3 md:h-auto md:py-2"
         >
           <option value="">
             All Instructors
@@ -111,16 +114,17 @@ export default function StudentFilters({
       </div>
 
       <div>
-        <label className="mb-2 block text-sm font-medium">
+        <label htmlFor="student-sort-filter" className="mb-2 block text-sm font-medium">
           Sort By
         </label>
 
         <select
+          id="student-sort-filter"
           value={filters.sortBy}
           onChange={(e) =>
             onChange("sortBy", e.target.value)
           }
-          className="w-full rounded-lg border bg-background px-3 py-2"
+          className="h-11 w-full rounded-lg border bg-background px-3 md:h-auto md:py-2"
         >
           <option value="Name">Name</option>
           <option value="join_date">
@@ -136,11 +140,12 @@ export default function StudentFilters({
       </div>
 
       <div>
-        <label className="mb-2 block text-sm font-medium">
+        <label htmlFor="student-sort-order" className="mb-2 block text-sm font-medium">
           Order
         </label>
 
         <select
+          id="student-sort-order"
           value={filters.sortOrder}
           onChange={(e) =>
             onChange(
@@ -148,7 +153,7 @@ export default function StudentFilters({
               e.target.value
             )
           }
-          className="w-full rounded-lg border bg-background px-3 py-2"
+          className="h-11 w-full rounded-lg border bg-background px-3 md:h-auto md:py-2"
         >
           <option value="asc">
             Ascending

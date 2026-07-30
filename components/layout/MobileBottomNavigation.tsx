@@ -74,7 +74,7 @@ export default function MobileBottomNavigation() {
           type="button"
           aria-label="Open all menu items"
           aria-expanded={openMobile}
-          onClick={() => setOpenMobile(true)}
+          onClick={() => setOpenMobile(!openMobile)}
           className={cn(
             "flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-semibold transition-colors",
             openMobile

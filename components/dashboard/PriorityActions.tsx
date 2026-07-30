@@ -164,7 +164,7 @@ export default function PriorityActions({
                   </div>
                 </div>
 
-                <div className="flex shrink-0 flex-wrap gap-2">
+                <div className="grid shrink-0 grid-cols-2 gap-2 [&>*]:min-h-11 sm:flex sm:flex-wrap md:[&>*]:min-h-9">
                   {action.phone && (
                     <>
                       <a

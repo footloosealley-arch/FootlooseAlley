@@ -29,7 +29,7 @@ export default function StudentToolbar({
           onChange={(e) =>
             onSearchChange(e.target.value)
           }
-          className="w-full rounded-lg border bg-background py-2 pl-10 pr-4 outline-none transition focus:border-primary"
+          className="h-11 w-full rounded-lg border bg-background pl-10 pr-4 outline-none transition focus:border-primary lg:h-auto lg:py-2"
         />
       </div>
 

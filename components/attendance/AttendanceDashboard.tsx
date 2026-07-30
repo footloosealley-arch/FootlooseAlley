@@ -77,7 +77,7 @@ export default function AttendanceDashboard() {
           <div className="rounded-2xl bg-primary/10 p-3 text-primary"><Activity className="h-6 w-6" /></div>
           <div><h1 className="text-2xl font-bold tracking-tight md:text-3xl">Attendance Intelligence</h1><p className="mt-1 text-sm text-muted-foreground">Monitor daily attendance, monthly patterns, student streaks, and retention risks.</p></div>
         </div>
-        <Button type="button" variant="outline" onClick={() => void loadDashboard()} disabled={loading}>
+        <Button className="h-11 w-full lg:h-8 lg:w-auto" type="button" variant="outline" onClick={() => void loadDashboard()} disabled={loading}>
           {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}Refresh dashboard
         </Button>
       </header>

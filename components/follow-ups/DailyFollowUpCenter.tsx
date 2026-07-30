@@ -229,6 +229,7 @@ export default function DailyFollowUpCenter() {
             type="button"
             variant="outline"
             size="lg"
+            className="h-11 w-full lg:w-auto"
             onClick={() => void refresh()}
             disabled={loading}
           >
@@ -376,7 +377,7 @@ export default function DailyFollowUpCenter() {
                   </div>
                 </div>
 
-                <div className="mt-5 flex flex-wrap gap-2 border-t pt-4">
+                <div className="mt-5 grid grid-cols-2 gap-2 border-t pt-4 [&>*]:min-h-11 sm:flex sm:flex-wrap md:[&>*]:min-h-8">
                   {status === "Open" && followUp.whatsappUrl && (
                     <Button
                       type="button"
