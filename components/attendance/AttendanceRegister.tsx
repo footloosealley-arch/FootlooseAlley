@@ -25,6 +25,7 @@ import {
 } from "react";
 
 import { Button } from "@/components/ui/button";
+import SearchInput from "@/components/ui-foundation/SearchInput";
 import PrivateStudentPhoto from "@/components/students/PrivateStudentPhoto";
 import {
   attendanceService,
@@ -116,6 +117,9 @@ export default function AttendanceRegister() {
   const [success, setSuccess] =
     useState<string | null>(null);
 
+  const [studentSearch, setStudentSearch] =
+    useState("");
+
   const presentCount = useMemo(() => {
     return Object.values(statuses).filter(
       (status) => status === "Present"
@@ -144,6 +148,26 @@ export default function AttendanceRegister() {
     students.length - markedCount,
     0
   );
+
+  const filteredStudents = useMemo(() => {
+    const query = studentSearch.trim().toLowerCase();
+
+    if (!query) {
+      return students;
+    }
+
+    return students.filter((student) =>
+      [
+        student.Name,
+        student.Phone,
+        student.student_code,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
+    );
+  }, [studentSearch, students]);
 
   const loadReferenceData =
     useCallback(async () => {
@@ -578,6 +602,7 @@ export default function AttendanceRegister() {
                 setSelectedBatch(
                   event.target.value
                 );
+                setStudentSearch("");
                 setSuccess(null);
                 setError(null);
               }}
@@ -706,7 +731,9 @@ export default function AttendanceRegister() {
             <p className="text-sm text-muted-foreground">
               {students.length === 0
                 ? "No students loaded."
-                : `${markedCount} of ${students.length} students marked.`}
+                : studentSearch.trim()
+                  ? `Showing ${filteredStudents.length} of ${students.length} students. ${markedCount} marked.`
+                  : `${markedCount} of ${students.length} students marked.`}
             </p>
           </div>
 
@@ -727,7 +754,7 @@ export default function AttendanceRegister() {
               >
                 <Check className="mr-1 h-4 w-4" />
 
-                Mark All Present
+                Mark Whole Batch Present
               </Button>
 
               <Button
@@ -745,11 +772,32 @@ export default function AttendanceRegister() {
               >
                 <X className="mr-1 h-4 w-4" />
 
-                Clear
+                Clear Whole Batch
               </Button>
             </div>
           )}
         </div>
+
+        {students.length > 0 && (
+          <div className="border-b p-3 sm:p-4">
+            <SearchInput
+              value={studentSearch}
+              onChange={(event) =>
+                setStudentSearch(event.target.value)
+              }
+              onClear={() => setStudentSearch("")}
+              aria-label="Find a student in this batch"
+              placeholder="Find student by name, phone, or code"
+              className="h-11"
+              containerClassName="w-full sm:max-w-md"
+            />
+            {studentSearch.trim() && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Showing {filteredStudents.length} of {students.length} students. Batch-wide actions still apply to all students.
+              </p>
+            )}
+          </div>
+        )}
 
         {loadingAttendance ? (
           <div className="flex min-h-64 items-center justify-center">
@@ -790,10 +838,32 @@ export default function AttendanceRegister() {
               module first.
             </p>
           </div>
+        ) : filteredStudents.length === 0 ? (
+          <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
+            <Users className="mb-3 h-10 w-10 text-muted-foreground/50" />
+
+            <h3 className="font-medium">
+              No matching students
+            </h3>
+
+            <p className="mt-1 max-w-md text-sm text-muted-foreground">
+              Try a different name, phone number, or student code.
+            </p>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-4 h-11"
+              onClick={() => setStudentSearch("")}
+            >
+              Clear search
+            </Button>
+          </div>
         ) : (
           <>
           <div className="grid gap-3 p-3 md:hidden">
-            {students.map((student) => {
+            {filteredStudents.map((student) => {
               const status =
                 statuses[student.id] || "";
 
@@ -931,7 +1001,7 @@ export default function AttendanceRegister() {
               </thead>
 
               <tbody>
-                {students.map(
+                {filteredStudents.map(
                   (student) => {
                     const status =
                       statuses[
