@@ -11,6 +11,26 @@ type RequestBody = {
   instructions?: unknown;
 };
 
+type EnquiryDraftRow = {
+  Name: string | null;
+  Program: string | null;
+  Status: string | null;
+  Follow_up_date: string | null;
+  trial_date: string | null;
+};
+
+type FeeDraftRow = {
+  amount_due: number | string | null;
+  due_date: string | null;
+  status: string | null;
+  membership_plan: string | null;
+  Students: unknown;
+};
+
+type BirthdayDraftRow = {
+  Name: string | null;
+};
+
 const allowedOrigins = [
   "footloose-alley.vercel.app",
   "localhost",
@@ -104,10 +124,15 @@ function buildPrompt({
 }
 
 async function getApprovedContext(
-  supabase: ReturnType<typeof createClient>,
+  supabaseUrl: string,
+  serviceRoleKey: string,
   draftType: DraftType,
   recordId: number,
 ): Promise<Record<string, string | number | null> | null> {
+  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
   if (draftType === "enquiry") {
     const { data, error } = await supabase
       .from("Enquiries")
@@ -116,14 +141,15 @@ async function getApprovedContext(
       .maybeSingle();
 
     if (error) throw error;
-    if (!data) return null;
+    const enquiry = data as EnquiryDraftRow | null;
+    if (!enquiry) return null;
 
     return {
-      recipient_name: data.Name?.trim() || null,
-      programme: data.Program?.trim() || null,
-      enquiry_status: data.Status?.trim() || null,
-      follow_up_date: data.Follow_up_date ?? null,
-      trial_date: data.trial_date ?? null,
+      recipient_name: enquiry.Name?.trim() || null,
+      programme: enquiry.Program?.trim() || null,
+      enquiry_status: enquiry.Status?.trim() || null,
+      follow_up_date: enquiry.Follow_up_date ?? null,
+      trial_date: enquiry.trial_date ?? null,
     };
   }
 
@@ -135,14 +161,15 @@ async function getApprovedContext(
       .maybeSingle();
 
     if (error) throw error;
-    if (!data) return null;
+    const feeDue = data as FeeDraftRow | null;
+    if (!feeDue) return null;
 
     return {
-      recipient_name: getStudentName(data.Students),
-      amount_due: Number(data.amount_due ?? 0),
-      due_date: data.due_date ?? null,
-      fee_status: data.status?.trim() || null,
-      membership_plan: data.membership_plan?.trim() || null,
+      recipient_name: getStudentName(feeDue.Students),
+      amount_due: Number(feeDue.amount_due ?? 0),
+      due_date: feeDue.due_date ?? null,
+      fee_status: feeDue.status?.trim() || null,
+      membership_plan: feeDue.membership_plan?.trim() || null,
     };
   }
 
@@ -153,10 +180,11 @@ async function getApprovedContext(
     .maybeSingle();
 
   if (error) throw error;
-  if (!data) return null;
+  const student = data as BirthdayDraftRow | null;
+  if (!student) return null;
 
   return {
-    recipient_name: data.Name?.trim() || null,
+    recipient_name: student.Name?.trim() || null,
   };
 }
 
@@ -168,7 +196,7 @@ Deno.serve(async (request) => {
     return new Response(null, {
       status: 204,
       headers: {
-        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Origin": origin ?? "https://footloose-alley.vercel.app",
         "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
         Vary: "Origin",
@@ -231,7 +259,12 @@ Deno.serve(async (request) => {
       }, origin);
     }
 
-    const context = await getApprovedContext(supabase, body.draftType, recordId);
+    const context = await getApprovedContext(
+      supabaseUrl,
+      serviceRoleKey,
+      body.draftType,
+      recordId,
+    );
     if (!context) return jsonResponse(404, { error: "The selected record is no longer available." }, origin);
 
     const providerResponse = await fetch("https://api.openai.com/v1/chat/completions", {
