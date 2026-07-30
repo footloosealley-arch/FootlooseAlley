@@ -12,14 +12,16 @@ Each notification contains a generic staff action only and opens the relevant in
 
 - `public/push-sw.js` receives and displays browser notifications.
 - `push-subscription` is an authenticated Supabase Edge Function that verifies the active staff profile before storing or removing a browser subscription.
-- `push-dispatch` is a server-only Supabase Edge Function that delivers queued events using Web Push VAPID credentials.
+- `push-subscription` also stores validated alert-category and quiet-hours preferences for the authenticated staff user.
+- `push-dispatch` is a server-only Supabase Edge Function that enforces those preferences before delivering queued events using Web Push VAPID credentials.
 - `20260730_v3180_staff_push_notifications.sql` creates the private subscription/event tables and queues new enquiries and trial changes. The dispatcher adds overdue follow-up events.
+- `20260730_v3181_staff_push_preferences.sql` creates the private preference table. The browser has no direct access to subscriptions, events, or preferences.
 
 No provider account is required; browser push services are used directly through VAPID. The VAPID private key and dispatcher secret are never sent to the browser.
 
 ## Configure
 
-1. Apply `supabase/migrations/20260730_v3180_staff_push_notifications.sql`.
+1. Apply `supabase/migrations/20260730_v3180_staff_push_notifications.sql` and `supabase/migrations/20260730_v3181_staff_push_preferences.sql`.
 2. Generate a VAPID key pair. For example:
 
    ```bash
@@ -52,6 +54,18 @@ No provider account is required; browser push services are used directly through
    The dispatcher rejects requests without this server-side secret. Use a trusted scheduler (for example, Supabase Cron with the secret held in Supabase Vault). Do not call this endpoint from the browser or expose its secret in a Vercel environment variable.
 
 After deployment, open **Settings → Staff push notifications** in a supported HTTPS browser and select **Enable notifications**. Browser permission remains opt-in per device and can be disabled from the same screen at any time.
+
+## Alert controls and quiet hours
+
+The existing Settings card also lets each active staff user choose whether to receive:
+
+- new enquiries;
+- trial requests or reschedules; and
+- overdue follow-ups.
+
+All three categories are enabled by default. Quiet hours are disabled by default, so the current immediate-delivery behavior remains unchanged. When enabled, quiet hours use the selected IANA timezone and hold matching alerts until the period ends; a period may cross midnight (for example, 21:00 to 08:00).
+
+Category preferences and quiet hours are validated and saved only by the authenticated `push-subscription` Edge Function. The dispatcher applies them server-side. It builds each outgoing payload from a fixed event-type allowlist, so notification titles, bodies, and routes remain generic even if queued data is altered. No names, contact details, payment data, or other PII is sent in a notification.
 
 ## Deployment constraints
 

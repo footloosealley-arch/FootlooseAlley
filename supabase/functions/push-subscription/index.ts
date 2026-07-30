@@ -8,11 +8,22 @@ type SubscriptionInput = {
   };
 };
 
+type PreferencesInput = {
+  newEnquiriesEnabled?: unknown;
+  trialChangesEnabled?: unknown;
+  overdueFollowUpsEnabled?: unknown;
+  quietHoursEnabled?: unknown;
+  quietHoursStart?: unknown;
+  quietHoursEnd?: unknown;
+  timezone?: unknown;
+};
+
 type RequestBody = {
   action?: unknown;
   subscription?: SubscriptionInput;
   endpoint?: unknown;
   userAgent?: unknown;
+  preferences?: PreferencesInput;
 };
 
 const allowedOrigins = [
@@ -20,6 +31,23 @@ const allowedOrigins = [
   "localhost",
   "127.0.0.1",
 ];
+
+const defaultPreferences = {
+  newEnquiriesEnabled: true,
+  trialChangesEnabled: true,
+  overdueFollowUpsEnabled: true,
+  quietHoursEnabled: false,
+  quietHoursStart: "21:00",
+  quietHoursEnd: "08:00",
+  timezone: "Asia/Kolkata",
+};
+
+const supportedTimeZones = new Set(
+  typeof Intl.supportedValuesOf === "function"
+    ? Intl.supportedValuesOf("timeZone")
+    : ["Asia/Kolkata", "UTC"]
+);
+supportedTimeZones.add("UTC");
 
 function jsonResponse(status: number, body: Record<string, unknown>, origin: string | null): Response {
   return new Response(JSON.stringify(body), {
@@ -66,6 +94,65 @@ function cleanUserAgent(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const userAgent = value.trim();
   return userAgent ? userAgent.slice(0, 500) : null;
+}
+
+function isTime(value: unknown): value is string {
+  return typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
+function normalizePreferences(value: PreferencesInput | undefined): typeof defaultPreferences | null {
+  if (
+    typeof value?.newEnquiriesEnabled !== "boolean" ||
+    typeof value.trialChangesEnabled !== "boolean" ||
+    typeof value.overdueFollowUpsEnabled !== "boolean" ||
+    typeof value.quietHoursEnabled !== "boolean" ||
+    !isTime(value.quietHoursStart) ||
+    !isTime(value.quietHoursEnd) ||
+    typeof value.timezone !== "string"
+  ) {
+    return null;
+  }
+
+  const timezone = value.timezone.trim();
+  if (
+    value.quietHoursStart === value.quietHoursEnd ||
+    !supportedTimeZones.has(timezone)
+  ) {
+    return null;
+  }
+
+  return {
+    newEnquiriesEnabled: value.newEnquiriesEnabled,
+    trialChangesEnabled: value.trialChangesEnabled,
+    overdueFollowUpsEnabled: value.overdueFollowUpsEnabled,
+    quietHoursEnabled: value.quietHoursEnabled,
+    quietHoursStart: value.quietHoursStart,
+    quietHoursEnd: value.quietHoursEnd,
+    timezone,
+  };
+}
+
+function toPreferences(
+  value: {
+    new_enquiries_enabled: boolean;
+    trial_changes_enabled: boolean;
+    overdue_follow_ups_enabled: boolean;
+    quiet_hours_enabled: boolean;
+    quiet_hours_start: string;
+    quiet_hours_end: string;
+    timezone: string;
+  } | null
+): typeof defaultPreferences {
+  if (!value) return defaultPreferences;
+  return {
+    newEnquiriesEnabled: value.new_enquiries_enabled,
+    trialChangesEnabled: value.trial_changes_enabled,
+    overdueFollowUpsEnabled: value.overdue_follow_ups_enabled,
+    quietHoursEnabled: value.quiet_hours_enabled,
+    quietHoursStart: value.quiet_hours_start.slice(0, 5),
+    quietHoursEnd: value.quiet_hours_end.slice(0, 5),
+    timezone: value.timezone,
+  };
 }
 
 Deno.serve(async (request) => {
@@ -126,15 +213,31 @@ Deno.serve(async (request) => {
     );
 
     if (body.action === "status") {
-      const { data: subscription, error } = await supabase
-        .from("push_subscriptions")
-        .select("id")
-        .eq("user_id", userData.user.id)
-        .limit(1)
-        .maybeSingle();
+      const [{ data: subscription, error: subscriptionError }, { data: preferences, error: preferencesError }] =
+        await Promise.all([
+          supabase
+            .from("push_subscriptions")
+            .select("id")
+            .eq("user_id", userData.user.id)
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from("staff_push_preferences")
+            .select(
+              "new_enquiries_enabled,trial_changes_enabled,overdue_follow_ups_enabled,quiet_hours_enabled,quiet_hours_start,quiet_hours_end,timezone"
+            )
+            .eq("user_id", userData.user.id)
+            .maybeSingle(),
+        ]);
 
-      if (error) throw error;
-      return jsonResponse(200, { ok: true, configured, subscribed: Boolean(subscription) }, origin);
+      if (subscriptionError) throw subscriptionError;
+      if (preferencesError) throw preferencesError;
+      return jsonResponse(200, {
+        ok: true,
+        configured,
+        subscribed: Boolean(subscription),
+        preferences: toPreferences(preferences),
+      }, origin);
     }
 
     if (body.action === "subscribe") {
@@ -163,6 +266,35 @@ Deno.serve(async (request) => {
 
       if (error) throw error;
       return jsonResponse(200, { ok: true, configured: true, subscribed: true }, origin);
+    }
+
+    if (body.action === "update_preferences") {
+      const preferences = normalizePreferences(body.preferences);
+      if (!preferences) {
+        return jsonResponse(400, {
+          error: "Choose a valid timezone and different start and end times for quiet hours.",
+        }, origin);
+      }
+
+      const { error } = await supabase
+        .from("staff_push_preferences")
+        .upsert(
+          {
+            user_id: userData.user.id,
+            new_enquiries_enabled: preferences.newEnquiriesEnabled,
+            trial_changes_enabled: preferences.trialChangesEnabled,
+            overdue_follow_ups_enabled: preferences.overdueFollowUpsEnabled,
+            quiet_hours_enabled: preferences.quietHoursEnabled,
+            quiet_hours_start: preferences.quietHoursStart,
+            quiet_hours_end: preferences.quietHoursEnd,
+            timezone: preferences.timezone,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id" }
+        );
+
+      if (error) throw error;
+      return jsonResponse(200, { ok: true, configured, preferences }, origin);
     }
 
     if (body.action === "unsubscribe") {

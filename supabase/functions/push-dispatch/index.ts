@@ -3,9 +3,7 @@ import webpush from "npm:web-push@3.6.7";
 
 type PushEvent = {
   id: number;
-  title: string;
-  body: string;
-  href: string;
+  event_type: "enquiry" | "trial" | "overdue_follow_up";
   dedupe_key: string;
 };
 
@@ -16,6 +14,45 @@ type PushSubscription = {
   p256dh: string;
   auth: string;
 };
+
+type PushPreferences = {
+  user_id: string;
+  new_enquiries_enabled: boolean;
+  trial_changes_enabled: boolean;
+  overdue_follow_ups_enabled: boolean;
+  quiet_hours_enabled: boolean;
+  quiet_hours_start: string;
+  quiet_hours_end: string;
+  timezone: string;
+};
+
+const defaultPreferences: Omit<PushPreferences, "user_id"> = {
+  new_enquiries_enabled: true,
+  trial_changes_enabled: true,
+  overdue_follow_ups_enabled: true,
+  quiet_hours_enabled: false,
+  quiet_hours_start: "21:00",
+  quiet_hours_end: "08:00",
+  timezone: "Asia/Kolkata",
+};
+
+const safePayloads = {
+  enquiry: {
+    title: "New enquiry",
+    body: "A new enquiry needs your attention.",
+    href: "/enquiries",
+  },
+  trial: {
+    title: "Trial request",
+    body: "A trial request needs your attention.",
+    href: "/trials",
+  },
+  overdue_follow_up: {
+    title: "Overdue follow-up",
+    body: "A staff follow-up needs your attention.",
+    href: "/follow-ups",
+  },
+} as const;
 
 function jsonResponse(status: number, body: Record<string, unknown>): Response {
   return new Response(JSON.stringify(body), {
@@ -56,6 +93,49 @@ function matchesSecret(actual: string | null, expected: string | undefined): boo
 function isSubscriptionExpired(error: unknown): boolean {
   const statusCode = (error as { statusCode?: unknown }).statusCode;
   return statusCode === 404 || statusCode === 410;
+}
+
+function isEventEnabled(event: PushEvent, preferences: Omit<PushPreferences, "user_id">): boolean {
+  if (event.event_type === "enquiry") return preferences.new_enquiries_enabled;
+  if (event.event_type === "trial") return preferences.trial_changes_enabled;
+  return preferences.overdue_follow_ups_enabled;
+}
+
+function toMinutes(time: string): number {
+  const [hours, minutes] = time.slice(0, 5).split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function getCurrentMinutes(timezone: string): number {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value])
+  );
+
+  return Number(values.hour) * 60 + Number(values.minute);
+}
+
+function isQuietNow(preferences: Omit<PushPreferences, "user_id">): boolean {
+  if (!preferences.quiet_hours_enabled) return false;
+
+  try {
+    const current = getCurrentMinutes(preferences.timezone);
+    const start = toMinutes(preferences.quiet_hours_start);
+    const end = toMinutes(preferences.quiet_hours_end);
+
+    return start < end
+      ? current >= start && current < end
+      : current >= start || current < end;
+  } catch {
+    return false;
+  }
 }
 
 Deno.serve(async (request) => {
@@ -107,11 +187,15 @@ Deno.serve(async (request) => {
       if (queueError) throw queueError;
     }
 
-    const [{ data: events, error: eventsError }, { data: activeProfiles, error: profilesError }] =
+    const [
+      { data: events, error: eventsError },
+      { data: activeProfiles, error: profilesError },
+      { data: preferenceRows, error: preferencesError },
+    ] =
       await Promise.all([
         supabase
           .from("staff_push_events")
-          .select("id,title,body,href,dedupe_key")
+          .select("id,event_type,dedupe_key")
           .is("delivered_at", null)
           .order("created_at", { ascending: true })
           .limit(25),
@@ -120,10 +204,16 @@ Deno.serve(async (request) => {
           .select("id")
           .eq("is_active", true)
           .in("role", ["admin", "receptionist"]),
+        supabase
+          .from("staff_push_preferences")
+          .select(
+            "user_id,new_enquiries_enabled,trial_changes_enabled,overdue_follow_ups_enabled,quiet_hours_enabled,quiet_hours_start,quiet_hours_end,timezone"
+          ),
       ]);
 
     if (eventsError) throw eventsError;
     if (profilesError) throw profilesError;
+    if (preferencesError) throw preferencesError;
 
     const activeUserIds = new Set((activeProfiles ?? []).map((profile) => profile.id));
     const { data: allSubscriptions, error: subscriptionsError } = await supabase
@@ -136,6 +226,12 @@ Deno.serve(async (request) => {
       activeUserIds.has(subscription.user_id)
     );
     const pendingEvents = (events ?? []) as PushEvent[];
+    const preferencesByUser = new Map(
+      ((preferenceRows ?? []) as PushPreferences[]).map((preferences) => [
+        preferences.user_id,
+        preferences,
+      ])
+    );
 
     if (pendingEvents.length === 0 || subscriptions.length === 0) {
       return jsonResponse(200, {
@@ -148,11 +244,34 @@ Deno.serve(async (request) => {
 
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
     let delivered = 0;
+    let suppressed = 0;
     const expiredSubscriptionIds = new Set<number>();
 
     for (const event of pendingEvents) {
+      const categorySubscriptions = subscriptions.filter((subscription) =>
+        isEventEnabled(event, preferencesByUser.get(subscription.user_id) ?? defaultPreferences)
+      );
+
+      if (categorySubscriptions.length === 0) {
+        const { error } = await supabase
+          .from("staff_push_events")
+          .update({ delivered_at: new Date().toISOString() })
+          .eq("id", event.id);
+
+        if (error) throw error;
+        suppressed += 1;
+        continue;
+      }
+
+      const deliverySubscriptions = categorySubscriptions.filter((subscription) =>
+        !isQuietNow(preferencesByUser.get(subscription.user_id) ?? defaultPreferences)
+      );
+
+      if (deliverySubscriptions.length === 0) continue;
+
+      const payload = safePayloads[event.event_type];
       const results = await Promise.all(
-        subscriptions.map(async (subscription) => {
+        deliverySubscriptions.map(async (subscription) => {
           try {
             await webpush.sendNotification(
               {
@@ -163,9 +282,7 @@ Deno.serve(async (request) => {
                 },
               },
               JSON.stringify({
-                title: event.title,
-                body: event.body,
-                href: event.href,
+                ...payload,
                 tag: event.dedupe_key,
               }),
               { TTL: 60 * 60 }
@@ -203,6 +320,7 @@ Deno.serve(async (request) => {
       ok: true,
       queued: pendingEvents.length,
       delivered,
+      suppressed,
       subscriptions: subscriptions.length,
       removedExpiredSubscriptions: expiredSubscriptionIds.size,
     });
