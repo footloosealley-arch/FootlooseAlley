@@ -90,6 +90,20 @@ function getWhatsAppUrl(
 export default function PriorityActions({
   actions,
 }: PriorityActionsProps) {
+  const priorityCounts = actions.reduce<
+    Record<DashboardPriorityLevel, number>
+  >(
+    (counts, action) => {
+      counts[action.priority] += 1;
+      return counts;
+    },
+    {
+      Urgent: 0,
+      Today: 0,
+      Upcoming: 0,
+    }
+  );
+
   return (
     <WidgetCard
       title="Today's Priority Actions"
@@ -120,6 +134,32 @@ export default function PriorityActions({
         </div>
       ) : (
         <div className="space-y-3">
+          <div
+            className="flex flex-wrap gap-2"
+            aria-label="Priority action breakdown"
+          >
+            {(
+              [
+                "Urgent",
+                "Today",
+                "Upcoming",
+              ] as DashboardPriorityLevel[]
+            ).map(
+              (priority) =>
+                priorityCounts[priority] > 0 && (
+                  <span
+                    key={priority}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${getPriorityClasses(
+                      priority
+                    )}`}
+                  >
+                    {priorityCounts[priority]}{" "}
+                    {priority}
+                  </span>
+                )
+            )}
+          </div>
+
           {actions.map((action) => {
             const Icon = getTypeIcon(
               action.type
