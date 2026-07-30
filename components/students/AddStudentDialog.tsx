@@ -186,9 +186,9 @@ export default function AddStudentDialog({
       open={open}
       onOpenChange={handleOpenChange}
     >
-      <DialogContent className="max-h-[92vh] overflow-hidden p-0 sm:max-w-5xl">
-        <div className="flex max-h-[92vh] flex-col">
-          <DialogHeader className="border-b px-6 py-5">
+      <DialogContent className="max-h-[calc(100dvh-1rem)] overflow-hidden p-0 sm:max-w-5xl">
+        <div className="flex max-h-[calc(100dvh-1rem)] flex-col">
+          <DialogHeader className="border-b px-4 py-4 sm:px-6 sm:py-5">
             <DialogTitle>
               Add New Student
             </DialogTitle>
@@ -200,7 +200,7 @@ export default function AddStudentDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto px-6 py-6">
+          <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
             {error && (
               <div
                 role="alert"

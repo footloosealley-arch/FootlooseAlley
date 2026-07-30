@@ -55,20 +55,21 @@ export default function StudentPagination({
         students
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <label className="text-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <div className="flex items-center justify-between gap-2 sm:justify-start">
+          <label htmlFor="student-page-size" className="text-sm">
             Rows
           </label>
 
           <select
+            id="student-page-size"
             value={pageSize}
             onChange={(e) =>
               onPageSizeChange(
                 Number(e.target.value)
               )
             }
-            className="rounded-lg border px-2 py-1"
+            className="h-11 rounded-lg border px-3 sm:h-8 sm:px-2 sm:py-1"
           >
             <option value={10}>10</option>
             <option value={20}>20</option>
@@ -77,47 +78,55 @@ export default function StudentPagination({
           </select>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="grid grid-cols-[auto_auto_1fr_auto_auto] items-center gap-1">
           <button
+            type="button"
             onClick={() =>
               onPageChange(1)
             }
             disabled={page === 1}
-            className="rounded-md border p-2 disabled:cursor-not-allowed disabled:opacity-50 hover:bg-muted"
+            aria-label="First page"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-md border disabled:cursor-not-allowed disabled:opacity-50 hover:bg-muted sm:h-8 sm:w-8"
           >
             <ChevronsLeft className="h-4 w-4" />
           </button>
 
           <button
+            type="button"
             onClick={() =>
               onPageChange(page - 1)
             }
             disabled={page === 1}
-            className="rounded-md border p-2 disabled:cursor-not-allowed disabled:opacity-50 hover:bg-muted"
+            aria-label="Previous page"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-md border disabled:cursor-not-allowed disabled:opacity-50 hover:bg-muted sm:h-8 sm:w-8"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
 
-          <div className="px-4 text-sm font-medium">
+          <div className="min-w-0 px-2 text-center text-sm font-medium">
             Page {page} of {totalPages}
           </div>
 
           <button
+            type="button"
             onClick={() =>
               onPageChange(page + 1)
             }
             disabled={page >= totalPages}
-            className="rounded-md border p-2 disabled:cursor-not-allowed disabled:opacity-50 hover:bg-muted"
+            aria-label="Next page"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-md border disabled:cursor-not-allowed disabled:opacity-50 hover:bg-muted sm:h-8 sm:w-8"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
 
           <button
+            type="button"
             onClick={() =>
               onPageChange(totalPages)
             }
             disabled={page >= totalPages}
-            className="rounded-md border p-2 disabled:cursor-not-allowed disabled:opacity-50 hover:bg-muted"
+            aria-label="Last page"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-md border disabled:cursor-not-allowed disabled:opacity-50 hover:bg-muted sm:h-8 sm:w-8"
           >
             <ChevronsRight className="h-4 w-4" />
           </button>

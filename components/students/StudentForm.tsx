@@ -326,8 +326,8 @@ export default function StudentForm({
         disabled={loading}
       />
 
-      <section className="rounded-xl border bg-card p-6 shadow-sm">
-        <div className="mb-6 flex items-center gap-2">
+      <section className="rounded-xl border bg-card p-4 shadow-sm sm:p-6">
+        <div className="mb-4 flex items-center gap-2 sm:mb-6">
           <User className="h-5 w-5 text-primary" />
 
           <h2 className="text-lg font-semibold">
@@ -335,7 +335,7 @@ export default function StudentForm({
           </h2>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 md:gap-6">
           <div className="space-y-2">
             <Label htmlFor="name">
               Student Name *
@@ -470,8 +470,8 @@ export default function StudentForm({
         </div>
       </section>
 
-      <section className="rounded-xl border bg-card p-6 shadow-sm">
-        <div className="mb-6 flex items-center gap-2">
+      <section className="rounded-xl border bg-card p-4 shadow-sm sm:p-6">
+        <div className="mb-4 flex items-center gap-2 sm:mb-6">
           <Phone className="h-5 w-5 text-primary" />
 
           <h2 className="text-lg font-semibold">
@@ -479,7 +479,7 @@ export default function StudentForm({
           </h2>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 md:gap-6">
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="address">
               Address
@@ -543,8 +543,8 @@ export default function StudentForm({
         </div>
       </section>
 
-      <section className="rounded-xl border bg-card p-6 shadow-sm">
-        <div className="mb-6 flex items-center gap-2">
+      <section className="rounded-xl border bg-card p-4 shadow-sm sm:p-6">
+        <div className="mb-4 flex items-center gap-2 sm:mb-6">
           <Users className="h-5 w-5 text-primary" />
 
           <h2 className="text-lg font-semibold">
@@ -558,7 +558,7 @@ export default function StudentForm({
             instructors...
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 md:gap-6">
             <div className="space-y-4 md:col-span-2">
               <div>
                 <Label>
@@ -737,8 +737,8 @@ export default function StudentForm({
         )}
       </div>
 
-      <section className="rounded-xl border bg-card p-6 shadow-sm">
-        <div className="mb-6 flex items-center gap-2">
+      <section className="rounded-xl border bg-card p-4 shadow-sm sm:p-6">
+        <div className="mb-4 flex items-center gap-2 sm:mb-6">
           <Heart className="h-5 w-5 text-primary" />
 
           <h2 className="text-lg font-semibold">
@@ -767,7 +767,7 @@ export default function StudentForm({
         </div>
       </section>
 
-      <section className="rounded-xl border bg-card p-6 shadow-sm">
+      <section className="rounded-xl border bg-card p-4 shadow-sm sm:p-6">
         <div className="mb-6">
           <h2 className="text-lg font-semibold">
             Additional Notes
@@ -795,7 +795,7 @@ export default function StudentForm({
         </div>
       </section>
 
-      <section className="rounded-xl border bg-muted/40 p-6">
+      <section className="rounded-xl border bg-muted/40 p-4 sm:p-6">
         <h2 className="mb-4 text-lg font-semibold">
           Membership Summary
         </h2>

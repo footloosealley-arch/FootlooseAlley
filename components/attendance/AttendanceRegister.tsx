@@ -474,7 +474,7 @@ export default function AttendanceRegister() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <Button
             type="button"
             variant="outline"
@@ -716,6 +716,7 @@ export default function AttendanceRegister() {
                 type="button"
                 size="sm"
                 variant="outline"
+                className="h-11 w-full sm:h-7 sm:w-auto"
                 onClick={() =>
                   markAll("Present")
                 }
@@ -733,6 +734,7 @@ export default function AttendanceRegister() {
                 type="button"
                 size="sm"
                 variant="outline"
+                className="h-11 w-full sm:h-7 sm:w-auto"
                 onClick={
                   clearAttendance
                 }

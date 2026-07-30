@@ -88,18 +88,18 @@ function Avatar({ student }: { student: Student }) {
 
 function QuickActions({ student }: { student: Student }) {
   const whatsappNumber = getWhatsAppNumber(student.Phone);
-  const actionClass = "inline-flex h-9 w-9 items-center justify-center rounded-xl border bg-background transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
+  const actionClass = "inline-flex h-11 w-11 items-center justify-center rounded-xl border bg-background transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:h-9 md:w-9";
 
   return (
     <div className="flex items-center justify-end gap-1.5">
-      <Link href={`/students/${student.id}`} className={actionClass} title="View profile">
+      <Link href={`/students/${student.id}`} className={actionClass} aria-label={`View ${student.Name ?? "student"} profile`} title="View profile">
         <Eye className="h-4 w-4" />
       </Link>
-      <Link href={`/students/${student.id}/edit`} className={actionClass} title="Edit student">
+      <Link href={`/students/${student.id}/edit`} className={actionClass} aria-label={`Edit ${student.Name ?? "student"}`} title="Edit student">
         <Pencil className="h-4 w-4" />
       </Link>
       {student.Phone && (
-        <a href={`tel:${student.Phone}`} className={actionClass} title="Call student">
+        <a href={`tel:${student.Phone}`} className={actionClass} aria-label={`Call ${student.Name ?? "student"}`} title="Call student">
           <Phone className="h-4 w-4" />
         </a>
       )}
@@ -109,6 +109,7 @@ function QuickActions({ student }: { student: Student }) {
           target="_blank"
           rel="noreferrer"
           className={`${actionClass} text-emerald-600`}
+          aria-label={`Message ${student.Name ?? "student"} on WhatsApp`}
           title="WhatsApp student"
         >
           <MessageCircle className="h-4 w-4" />
