@@ -42,10 +42,10 @@ export default function AppHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 items-center border-b border-primary/15 bg-background/85 px-4 shadow-[0_10px_35px_-30px_rgba(180,35,58,0.85)] backdrop-blur-xl sm:px-6">
+    <header className="sticky top-0 z-40 flex h-14 items-center border-b border-primary/15 bg-background/90 px-3 shadow-[0_10px_35px_-30px_rgba(180,35,58,0.85)] backdrop-blur-xl sm:h-16 sm:px-6">
       <div className="flex min-w-0 items-center gap-3">
-        <SidebarTrigger />
-        <Separator orientation="vertical" className="h-6" />
+        <SidebarTrigger className="size-10 md:size-7" />
+        <Separator orientation="vertical" className="hidden h-6 sm:block" />
         <div className="min-w-0">
           <h1 className="truncate text-base font-semibold sm:text-lg">{title}</h1>
           <p className="truncate text-xs text-muted-foreground">{APP.SHORT_NAME}</p>
@@ -56,7 +56,7 @@ export default function AppHeader() {
         <button
           type="button"
           onClick={() => setMenuOpen((current) => !current)}
-          className="flex items-center gap-2 rounded-xl border bg-background p-1.5 pr-2 transition hover:bg-muted"
+          className="flex min-h-10 items-center gap-2 rounded-xl border bg-background p-1 pr-1.5 transition hover:bg-muted sm:p-1.5 sm:pr-2"
           aria-expanded={menuOpen}
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary via-rose-600 to-amber-500 text-xs font-semibold text-white shadow-sm">

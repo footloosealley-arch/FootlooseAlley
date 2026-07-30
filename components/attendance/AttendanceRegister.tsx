@@ -789,7 +789,124 @@ export default function AttendanceRegister() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="grid gap-3 p-3 md:hidden">
+            {students.map((student) => {
+              const status =
+                statuses[student.id] || "";
+
+              return (
+                <article
+                  key={student.id}
+                  className="rounded-2xl border bg-background p-4 shadow-sm"
+                >
+                  <div className="flex items-center gap-3">
+                    {student.photo_url ? (
+                      <PrivateStudentPhoto
+                        path={student.photo_url}
+                        alt={student.Name || "Student"}
+                        className="h-12 w-12 rounded-2xl border object-cover"
+                        fallback={
+                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border bg-muted text-sm font-semibold">
+                            {getInitials(student.Name)}
+                          </div>
+                        }
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border bg-muted text-sm font-semibold">
+                        {getInitials(student.Name)}
+                      </div>
+                    )}
+
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold">
+                        {student.Name ||
+                          `Student ${student.id}`}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {student.student_code ||
+                          student.Phone ||
+                          "No student code"}
+                      </p>
+                    </div>
+
+                    {status ? (
+                      <span
+                        className={[
+                          "rounded-full px-2.5 py-1 text-xs font-semibold",
+                          status === "Present"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : status === "Absent"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-amber-100 text-amber-700",
+                        ].join(" ")}
+                      >
+                        {status}
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                        Unmarked
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    <StatusButton
+                      label="Present"
+                      active={status === "Present"}
+                      onClick={() =>
+                        updateStatus(
+                          student.id,
+                          "Present"
+                        )
+                      }
+                      disabled={saving}
+                    />
+
+                    <StatusButton
+                      label="Absent"
+                      active={status === "Absent"}
+                      onClick={() =>
+                        updateStatus(
+                          student.id,
+                          "Absent"
+                        )
+                      }
+                      disabled={saving}
+                    />
+
+                    <StatusButton
+                      label="Leave"
+                      active={status === "Leave"}
+                      onClick={() =>
+                        updateStatus(
+                          student.id,
+                          "Leave"
+                        )
+                      }
+                      disabled={saving}
+                    />
+                  </div>
+
+                  <input
+                    type="text"
+                    value={remarks[student.id] || ""}
+                    onChange={(event) =>
+                      updateRemarks(
+                        student.id,
+                        event.target.value
+                      )
+                    }
+                    placeholder="Optional remarks"
+                    disabled={saving}
+                    className="mt-3 h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-3 focus:ring-ring/50"
+                  />
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[900px]">
               <thead className="bg-muted/40">
                 <tr className="border-b text-left text-sm">
@@ -948,10 +1065,11 @@ export default function AttendanceRegister() {
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         {students.length > 0 && (
-          <div className="flex flex-col gap-3 border-t bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 flex flex-col gap-3 border-t bg-background/95 p-4 shadow-[0_-12px_30px_-25px_rgba(0,0,0,0.65)] backdrop-blur sm:static sm:flex-row sm:items-center sm:justify-between sm:bg-muted/20 sm:shadow-none">
             <p className="text-sm text-muted-foreground">
               {unmarkedCount > 0
                 ? `${unmarkedCount} student${
@@ -964,6 +1082,7 @@ export default function AttendanceRegister() {
 
             <Button
               type="button"
+              className="h-11 w-full sm:h-8 sm:w-auto"
               onClick={() =>
                 void handleSave()
               }
@@ -1049,7 +1168,7 @@ function StatusButton({
       disabled={disabled}
       aria-pressed={active}
       className={[
-        "inline-flex h-9 items-center justify-center rounded-lg border px-3 text-sm font-medium transition-colors",
+        "inline-flex h-11 items-center justify-center rounded-lg border px-2 text-xs font-semibold transition-colors sm:h-9 sm:px-3 sm:text-sm",
         "disabled:pointer-events-none disabled:opacity-50",
         active
           ? activeClass

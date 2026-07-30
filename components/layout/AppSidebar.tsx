@@ -18,10 +18,12 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 export default function AppSidebar() {
   const pathname = usePathname();
+  const { setOpenMobile } = useSidebar();
 
   return (
     <Sidebar collapsible="icon" className="border-r border-primary/15 bg-gradient-to-b from-rose-50 via-sidebar to-amber-50/60">
@@ -64,7 +66,12 @@ export default function AppSidebar() {
                       isActive={active}
                       tooltip={item.title}
                       render={
-                        <Link href={item.href} />
+                        <Link
+                          href={item.href}
+                          onClick={() =>
+                            setOpenMobile(false)
+                          }
+                        />
                       }
                       className={
                         active
