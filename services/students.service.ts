@@ -136,7 +136,7 @@ class StudentsService {
 
     if (normalizedSearch) {
       query = query.or(
-        `"Name".ilike.%${normalizedSearch}%,"Phone".ilike.%${normalizedSearch}%`
+        `"Name".ilike.%${normalizedSearch}%,"Phone".ilike.%${normalizedSearch}%,student_code.ilike.%${normalizedSearch}%`
       );
     }
 
