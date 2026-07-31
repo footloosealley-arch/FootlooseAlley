@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell, ChevronDown, LogOut, ShieldCheck, UserRound } from "lucide-react";
@@ -45,13 +44,12 @@ export default function AppHeader() {
     <header className="sticky top-0 z-40 border-b border-primary/10 bg-background/90 shadow-[0_10px_35px_-30px_rgba(180,35,58,0.85)] backdrop-blur-xl">
       <div className="flex h-16 items-center px-3 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
-          <Link
-            href="/dashboard"
-            aria-label="Go to dashboard"
-            className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-transparent p-0.5 transition hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          <div
+            aria-label="Footloose Alley logo"
+            className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden bg-transparent"
           >
-            <BrandLogo width={38} height={38} className="max-h-full object-contain" />
-          </Link>
+            <BrandLogo width={44} height={44} className="max-h-full object-contain" />
+          </div>
 
           <div className="min-w-0">
             <h1 className="truncate text-lg font-bold tracking-tight sm:text-xl">{title}</h1>
