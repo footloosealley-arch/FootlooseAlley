@@ -138,6 +138,15 @@ function activeEnquiry(status: string | null): boolean {
   return status !== "Joined" && status !== "Closed" && status !== "Not Interested";
 }
 
+function activeStudent(status: string | null): boolean {
+  return !["Inactive", "Cancelled", "Archived"].includes(status ?? "");
+}
+
+function birthdayDateFor(referenceDate: string, dateOfBirth: string): string {
+  const [, month, day] = dateOfBirth.slice(0, 10).split("-");
+  return `${referenceDate.slice(0, 4)}-${month}-${day}`;
+}
+
 function applyActions(
   reminders: DailyFollowUp[],
   actions: ActionRow[]
@@ -176,6 +185,7 @@ function sortReminders(reminders: DailyFollowUp[]): DailyFollowUp[] {
 class DailyFollowUpsService {
   async getFollowUps(): Promise<DailyFollowUp[]> {
     const today = localDateString();
+    const tomorrow = addDays(today, 1);
     const membershipWindow = addDays(today, 7);
 
     const refreshResult = await supabase.rpc("refresh_fee_due_statuses");
@@ -266,10 +276,10 @@ class DailyFollowUpsService {
       }
 
       if (student.date_of_birth) {
-        const birthParts = student.date_of_birth.slice(0, 10).split("-");
-        const birthdayThisYear = `${today.slice(0, 4)}-${birthParts[1]}-${birthParts[2]}`;
+        const birthdayToday = birthdayDateFor(today, student.date_of_birth);
+        const birthdayTomorrow = birthdayDateFor(tomorrow, student.date_of_birth);
 
-        if (birthdayThisYear === today) {
+        if (birthdayToday === today) {
           reminders.push({
             key: `birthday:${student.id}:${today.slice(0, 4)}`,
             type: "Birthday",
@@ -285,6 +295,23 @@ class DailyFollowUpsService {
               phone,
               `Happy Birthday ${name}! 🎉 Wishing you a wonderful year ahead from everyone at Footloose Alley Dance and Fitness Studio.`
             ),
+            actionStatus: null,
+            postponedUntil: null,
+            completedAt: null,
+          });
+        } else if (birthdayTomorrow === tomorrow && activeStudent(student.Status)) {
+          reminders.push({
+            key: `birthday-plan:${student.id}:${tomorrow}`,
+            type: "Birthday",
+            subjectId: student.id,
+            name,
+            phone,
+            title: "Birthday tomorrow",
+            detail: `Plan tomorrow's birthday wish or celebration for ${name}.`,
+            dueDate: tomorrow,
+            priority: "Upcoming",
+            manageHref: `/students/${student.id}`,
+            whatsappUrl: null,
             actionStatus: null,
             postponedUntil: null,
             completedAt: null,
@@ -362,13 +389,38 @@ class DailyFollowUpsService {
         });
       }
 
-      if (
-        enquiry.trial_date &&
-        enquiry.trial_date <= today &&
+      const trialDate = enquiry.trial_date?.slice(0, 10) ?? null;
+      const trialIsOpen =
+        trialDate &&
         activeEnquiry(enquiry.Status) &&
-        !["Attended", "Cancelled"].includes(enquiry.trial_status ?? "")
-      ) {
-        const dueDate = enquiry.trial_date.slice(0, 10);
+        !["Attended", "Cancelled"].includes(enquiry.trial_status ?? "");
+
+      if (trialIsOpen && trialDate === tomorrow) {
+        reminders.push({
+          key: `trial-reminder:${enquiry.id}:${trialDate}`,
+          type: "Trial",
+          subjectId: enquiry.id,
+          name,
+          phone,
+          title: "Trial class tomorrow",
+          detail: `${enquiry.Program || "Trial class"} is scheduled for ${formatDate(
+            trialDate
+          )}.`,
+          dueDate: trialDate,
+          priority: "Upcoming",
+          manageHref: "/trials",
+          whatsappUrl: whatsappUrl(
+            phone,
+            `Hi ${name}, this is a reminder from Footloose Alley Dance and Fitness Studio that your trial class is tomorrow. We look forward to seeing you!`
+          ),
+          actionStatus: null,
+          postponedUntil: null,
+          completedAt: null,
+        });
+      }
+
+      if (trialIsOpen && trialDate <= today) {
+        const dueDate = trialDate;
 
         reminders.push({
           key: `trial:${enquiry.id}:${dueDate}`,
