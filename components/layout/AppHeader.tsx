@@ -6,8 +6,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { Bell, ChevronDown, LogOut, ShieldCheck, UserRound } from "lucide-react";
 
 import BrandLogo from "@/components/branding/BrandLogo";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
 import { APP } from "@/lib/constants";
 import { useAuth } from "@/components/auth/AuthProvider";
 
@@ -50,17 +48,10 @@ export default function AppHeader() {
           <Link
             href="/dashboard"
             aria-label="Go to dashboard"
-            className="flex h-10 w-10 shrink-0 items-center justify-center md:hidden"
+            className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-transparent p-0.5 transition hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
-            <BrandLogo
-              width={36}
-              height={36}
-              className="max-h-9 w-auto object-contain"
-            />
+            <BrandLogo width={38} height={38} className="max-h-full object-contain" />
           </Link>
-
-          <SidebarTrigger className="hidden size-9 md:inline-flex" />
-          <Separator orientation="vertical" className="hidden h-6 md:block" />
 
           <div className="min-w-0">
             <h1 className="truncate text-lg font-bold tracking-tight sm:text-xl">{title}</h1>
