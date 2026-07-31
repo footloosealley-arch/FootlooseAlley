@@ -5,8 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { Bell, ChevronDown, LogOut, ShieldCheck, UserRound } from "lucide-react";
 
 import BrandLogo from "@/components/branding/BrandLogo";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
 import { APP } from "@/lib/constants";
 import { useAuth } from "@/components/auth/AuthProvider";
 
@@ -51,17 +49,14 @@ export default function AppHeader() {
         <div className="flex min-w-0 items-center gap-3">
           <div
             aria-label="Footloose Alley logo"
-            className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden md:hidden"
+            className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/70 p-1 shadow-sm ring-1 ring-primary/10"
           >
             <BrandLogo
-              width={40}
-              height={40}
+              width={42}
+              height={42}
               className="max-h-full max-w-full object-contain"
             />
           </div>
-
-          <SidebarTrigger className="hidden size-9 md:inline-flex" />
-          <Separator orientation="vertical" className="hidden h-6 md:block" />
 
           <div className="min-w-0">
             <h1 className="truncate text-lg font-bold tracking-tight sm:text-xl">
