@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { Bell, ChevronDown, LogOut, ShieldCheck, UserRound } from "lucide-react";
 
 import BrandLogo from "@/components/branding/BrandLogo";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
 import { APP } from "@/lib/constants";
 import { useAuth } from "@/components/auth/AuthProvider";
 
@@ -17,6 +19,7 @@ export default function AppHeader() {
   const title = useMemo(() => {
     const segments = pathname.split("/").filter(Boolean);
     if (segments.length === 0) return "Dashboard";
+
     return segments[segments.length - 1]
       .replace(/-/g, " ")
       .replace(/\b\w/g, (char) => char.toUpperCase());
@@ -24,6 +27,7 @@ export default function AppHeader() {
 
   const initials = useMemo(() => {
     const name = profile?.full_name?.trim();
+
     if (name) {
       return name
         .split(/\s+/)
@@ -31,6 +35,7 @@ export default function AppHeader() {
         .map((part) => part[0]?.toUpperCase())
         .join("");
     }
+
     return profile?.email?.[0]?.toUpperCase() || "FA";
   }, [profile]);
 
@@ -46,13 +51,22 @@ export default function AppHeader() {
         <div className="flex min-w-0 items-center gap-3">
           <div
             aria-label="Footloose Alley logo"
-            className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden bg-transparent"
+            className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden md:hidden"
           >
-            <BrandLogo width={44} height={44} className="max-h-full object-contain" />
+            <BrandLogo
+              width={40}
+              height={40}
+              className="max-h-full max-w-full object-contain"
+            />
           </div>
 
+          <SidebarTrigger className="hidden size-9 md:inline-flex" />
+          <Separator orientation="vertical" className="hidden h-6 md:block" />
+
           <div className="min-w-0">
-            <h1 className="truncate text-lg font-bold tracking-tight sm:text-xl">{title}</h1>
+            <h1 className="truncate text-lg font-bold tracking-tight sm:text-xl">
+              {title}
+            </h1>
             <p className="hidden truncate text-xs text-muted-foreground md:block">
               {APP.SHORT_NAME}
             </p>
@@ -78,6 +92,7 @@ export default function AppHeader() {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary via-rose-600 to-amber-500 text-xs font-semibold text-white shadow-sm">
                 {initials}
               </div>
+
               <div className="hidden max-w-40 text-left md:block">
                 <p className="truncate text-xs font-semibold">
                   {profile?.full_name || "Studio Staff"}
@@ -86,6 +101,7 @@ export default function AppHeader() {
                   {profile?.role || "staff"}
                 </p>
               </div>
+
               <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground sm:block" />
             </button>
 
@@ -97,6 +113,7 @@ export default function AppHeader() {
                   className="fixed inset-0 z-40 cursor-default"
                   onClick={() => setMenuOpen(false)}
                 />
+
                 <div className="absolute right-0 z-50 mt-2 w-64 rounded-xl border bg-background p-2 shadow-xl">
                   <div className="rounded-lg bg-muted/50 p-3">
                     <div className="flex items-center gap-2">
@@ -105,14 +122,17 @@ export default function AppHeader() {
                         {profile?.full_name || "Studio Staff"}
                       </p>
                     </div>
+
                     <p className="mt-1 truncate text-xs text-muted-foreground">
                       {profile?.email}
                     </p>
+
                     <p className="mt-2 flex items-center gap-1 text-xs font-medium capitalize text-emerald-700">
                       <ShieldCheck className="h-3.5 w-3.5" />
                       {profile?.role} access
                     </p>
                   </div>
+
                   <button
                     type="button"
                     onClick={() => void handleSignOut()}
