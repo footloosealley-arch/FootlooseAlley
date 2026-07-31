@@ -209,6 +209,18 @@ class StudentsService {
   async deleteStudent(id: number): Promise<StudentRemovalResult> {
     this.validateStudentId(id);
 
+    const { error: paymentDeleteError } = await supabase
+      .from("Payments")
+      .delete()
+      .eq("student_id", id);
+
+    if (paymentDeleteError) {
+      throw new Error(
+        paymentDeleteError.message ||
+          "Unable to delete the student's payment records."
+      );
+    }
+
     const { error } = await supabase.from("Students").delete().eq("id", id);
     if (!error) return "deleted";
 
@@ -231,7 +243,7 @@ class StudentsService {
     if (archiveError) {
       throw new Error(
         archiveError.message ||
-          "This student has linked records and could not be archived."
+          "Payment records were removed, but another linked record prevented student deletion. The student could not be archived."
       );
     }
 
