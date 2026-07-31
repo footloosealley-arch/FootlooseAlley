@@ -1,8 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { Activity, BadgeIndianRupee, UserCheck, Users } from "lucide-react";
+import {
+  Activity,
+  Archive,
+  BadgeIndianRupee,
+  UserCheck,
+  Users,
+} from "lucide-react";
 
 import PageHeader from "@/components/layout/PageHeader";
 
@@ -160,6 +167,16 @@ export default function StudentsPage() {
   return (
     <>
       <PageHeader title="Students" description="Manage all studio students" />
+
+      <div className="mb-5 flex justify-end">
+        <Link
+          href="/students/archived"
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl border bg-background px-4 py-2 text-sm font-semibold transition hover:bg-muted"
+        >
+          <Archive className="h-4 w-4" />
+          Archived students
+        </Link>
+      </div>
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border bg-background p-4 shadow-sm">
