@@ -49,9 +49,6 @@ export default function AppHeader() {
           <Separator orientation="vertical" className="hidden h-6 md:block" />
 
           <div className="min-w-0">
-            <p className="truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-primary md:hidden">
-              {APP.SHORT_NAME}
-            </p>
             <h1 className="truncate text-lg font-bold tracking-tight sm:text-xl">{title}</h1>
             <p className="hidden truncate text-xs text-muted-foreground md:block">
               {APP.SHORT_NAME}
