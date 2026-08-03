@@ -191,25 +191,24 @@ Deno.serve(async (request) => {
       { data: events, error: eventsError },
       { data: activeProfiles, error: profilesError },
       { data: preferenceRows, error: preferencesError },
-    ] =
-      await Promise.all([
-        supabase
-          .from("staff_push_events")
-          .select("id,event_type,dedupe_key")
-          .is("delivered_at", null)
-          .order("created_at", { ascending: true })
-          .limit(25),
-        supabase
-          .from("profiles")
-          .select("id")
-          .eq("is_active", true)
-          .in("role", ["admin", "receptionist"]),
-        supabase
-          .from("staff_push_preferences")
-          .select(
-            "user_id,new_enquiries_enabled,trial_changes_enabled,overdue_follow_ups_enabled,quiet_hours_enabled,quiet_hours_start,quiet_hours_end,timezone"
-          ),
-      ]);
+    ] = await Promise.all([
+      supabase
+        .from("staff_push_events")
+        .select("id,event_type,dedupe_key")
+        .is("delivered_at", null)
+        .order("created_at", { ascending: true })
+        .limit(25),
+      supabase
+        .from("profiles")
+        .select("id")
+        .eq("is_active", true)
+        .in("role", ["admin", "receptionist"]),
+      supabase
+        .from("staff_push_preferences")
+        .select(
+          "user_id,new_enquiries_enabled,trial_changes_enabled,overdue_follow_ups_enabled,quiet_hours_enabled,quiet_hours_start,quiet_hours_end,timezone"
+        ),
+    ]);
 
     if (eventsError) throw eventsError;
     if (profilesError) throw profilesError;
@@ -232,15 +231,34 @@ Deno.serve(async (request) => {
         preferences,
       ])
     );
+    const subscriptionsByUser = new Map<string, PushSubscription[]>();
 
-    if (pendingEvents.length === 0 || subscriptions.length === 0) {
+    for (const subscription of subscriptions) {
+      const userSubscriptions = subscriptionsByUser.get(subscription.user_id) ?? [];
+      userSubscriptions.push(subscription);
+      subscriptionsByUser.set(subscription.user_id, userSubscriptions);
+    }
+
+    if (pendingEvents.length === 0 || subscriptionsByUser.size === 0) {
       return jsonResponse(200, {
         ok: true,
         queued: pendingEvents.length,
         delivered: 0,
+        suppressed: 0,
         subscriptions: subscriptions.length,
       });
     }
+
+    const { data: receiptRows, error: receiptsError } = await supabase
+      .from("staff_push_delivery_receipts")
+      .select("event_id,user_id,outcome")
+      .in("event_id", pendingEvents.map((event) => event.id));
+
+    if (receiptsError) throw receiptsError;
+
+    const processedRecipients = new Set(
+      (receiptRows ?? []).map((receipt) => `${receipt.event_id}:${receipt.user_id}`)
+    );
 
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
     let delivered = 0;
@@ -248,62 +266,83 @@ Deno.serve(async (request) => {
     const expiredSubscriptionIds = new Set<number>();
 
     for (const event of pendingEvents) {
-      const categorySubscriptions = subscriptions.filter((subscription) =>
-        isEventEnabled(event, preferencesByUser.get(subscription.user_id) ?? defaultPreferences)
-      );
+      for (const [userId, userSubscriptions] of subscriptionsByUser) {
+        const receiptKey = `${event.id}:${userId}`;
+        if (processedRecipients.has(receiptKey)) continue;
 
-      if (categorySubscriptions.length === 0) {
-        const { error } = await supabase
-          .from("staff_push_events")
-          .update({ delivered_at: new Date().toISOString() })
-          .eq("id", event.id);
+        const preferences = preferencesByUser.get(userId) ?? defaultPreferences;
+        if (!isEventEnabled(event, preferences)) {
+          const { error } = await supabase
+            .from("staff_push_delivery_receipts")
+            .upsert(
+              { event_id: event.id, user_id: userId, outcome: "suppressed" },
+              { onConflict: "event_id,user_id", ignoreDuplicates: true }
+            );
 
-        if (error) throw error;
-        suppressed += 1;
-        continue;
+          if (error) throw error;
+          processedRecipients.add(receiptKey);
+          suppressed += 1;
+          continue;
+        }
+
+        if (isQuietNow(preferences)) continue;
+
+        const payload = safePayloads[event.event_type];
+        const results = await Promise.all(
+          userSubscriptions.map(async (subscription) => {
+            try {
+              await webpush.sendNotification(
+                {
+                  endpoint: subscription.endpoint,
+                  keys: {
+                    p256dh: subscription.p256dh,
+                    auth: subscription.auth,
+                  },
+                },
+                JSON.stringify({
+                  ...payload,
+                  tag: event.dedupe_key,
+                }),
+                { TTL: 60 * 60 }
+              );
+              return true;
+            } catch (error) {
+              if (isSubscriptionExpired(error)) expiredSubscriptionIds.add(subscription.id);
+              console.error("push delivery failed", {
+                eventId: event.id,
+                subscriptionId: subscription.id,
+                error,
+              });
+              return false;
+            }
+          })
+        );
+
+        if (results.some(Boolean)) {
+          const { error } = await supabase
+            .from("staff_push_delivery_receipts")
+            .upsert(
+              { event_id: event.id, user_id: userId, outcome: "delivered" },
+              { onConflict: "event_id,user_id", ignoreDuplicates: true }
+            );
+
+          if (error) throw error;
+          processedRecipients.add(receiptKey);
+          delivered += 1;
+        }
       }
 
-      const deliverySubscriptions = categorySubscriptions.filter((subscription) =>
-        !isQuietNow(preferencesByUser.get(subscription.user_id) ?? defaultPreferences)
+      const fullyProcessed = [...subscriptionsByUser.keys()].every((userId) =>
+        processedRecipients.has(`${event.id}:${userId}`)
       );
 
-      if (deliverySubscriptions.length === 0) continue;
-
-      const payload = safePayloads[event.event_type];
-      const results = await Promise.all(
-        deliverySubscriptions.map(async (subscription) => {
-          try {
-            await webpush.sendNotification(
-              {
-                endpoint: subscription.endpoint,
-                keys: {
-                  p256dh: subscription.p256dh,
-                  auth: subscription.auth,
-                },
-              },
-              JSON.stringify({
-                ...payload,
-                tag: event.dedupe_key,
-              }),
-              { TTL: 60 * 60 }
-            );
-            return true;
-          } catch (error) {
-            if (isSubscriptionExpired(error)) expiredSubscriptionIds.add(subscription.id);
-            console.error("push delivery failed", { eventId: event.id, subscriptionId: subscription.id, error });
-            return false;
-          }
-        })
-      );
-
-      if (results.some(Boolean)) {
+      if (fullyProcessed) {
         const { error } = await supabase
           .from("staff_push_events")
           .update({ delivered_at: new Date().toISOString() })
           .eq("id", event.id);
 
         if (error) throw error;
-        delivered += 1;
       }
     }
 
