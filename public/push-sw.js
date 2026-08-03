@@ -1,3 +1,11 @@
+self.addEventListener("install", () => {
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener("push", (event) => {
   let payload = {
     title: "Footloose Alley",
@@ -21,6 +29,11 @@ self.addEventListener("push", (event) => {
       icon: "/footloose-alley-app-icon-192.png",
       badge: "/footloose-alley-app-icon-192.png",
       tag: payload.tag,
+      renotify: true,
+      requireInteraction: true,
+      silent: false,
+      timestamp: Date.now(),
+      vibrate: [200, 100, 200],
       data: { href: payload.href },
     })
   );
