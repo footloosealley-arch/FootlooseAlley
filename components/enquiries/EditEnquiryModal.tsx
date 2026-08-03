@@ -42,9 +42,9 @@ export default function EditEnquiryModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4">
 
-      <div className="w-full max-w-2xl rounded-xl bg-white p-6">
+      <div className="max-h-[calc(100dvh-1rem)] w-full max-w-2xl overflow-y-auto overscroll-contain rounded-xl bg-white p-4 shadow-xl sm:max-h-[calc(100dvh-2rem)] sm:p-6">
 
         <h2 className="mb-6 text-2xl font-bold">
           Edit Enquiry
