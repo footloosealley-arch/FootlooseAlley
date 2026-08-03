@@ -87,6 +87,44 @@ function toPayload(subscription: PushSubscription): PushSubscriptionPayload {
   };
 }
 
+function isPushWorker(registration: ServiceWorkerRegistration | undefined): boolean {
+  const worker = registration?.active ?? registration?.waiting ?? registration?.installing;
+  return worker?.scriptURL.endsWith("/push-sw.js") === true;
+}
+
+async function waitForActiveWorker(
+  registration: ServiceWorkerRegistration
+): Promise<ServiceWorkerRegistration> {
+  if (registration.active) return registration;
+
+  const worker = registration.installing ?? registration.waiting;
+  if (!worker) throw new Error("The notification service worker did not start.");
+
+  await new Promise<void>((resolve, reject) => {
+    const timeoutId = window.setTimeout(
+      () => reject(new Error("The notification service worker took too long to start.")),
+      10_000
+    );
+
+    const handleStateChange = () => {
+      if (worker.state === "activated") {
+        window.clearTimeout(timeoutId);
+        worker.removeEventListener("statechange", handleStateChange);
+        resolve();
+      } else if (worker.state === "redundant") {
+        window.clearTimeout(timeoutId);
+        worker.removeEventListener("statechange", handleStateChange);
+        reject(new Error("The notification service worker could not be activated."));
+      }
+    };
+
+    worker.addEventListener("statechange", handleStateChange);
+    handleStateChange();
+  });
+
+  return registration;
+}
+
 async function readFunctionError(error: unknown, fallback: string): Promise<never> {
   const context = (error as { context?: Response }).context;
 
@@ -135,7 +173,9 @@ export const pushNotificationsService = {
     }
 
     const registration = await navigator.serviceWorker.getRegistration("/");
-    const subscription = await registration?.pushManager.getSubscription();
+    const subscription = isPushWorker(registration)
+      ? await registration?.pushManager.getSubscription()
+      : null;
     const response = await callSubscriptionFunction({ action: "status" });
 
     return {
@@ -162,13 +202,15 @@ export const pushNotificationsService = {
       throw new Error("Notification permission was not granted. Enable it in your browser settings to continue.");
     }
 
-    const registration = await navigator.serviceWorker.register("/push-sw.js", {
+    let registration = await navigator.serviceWorker.register("/push-sw.js", {
       scope: "/",
+      updateViaCache: "none",
     });
-    const readyRegistration = await navigator.serviceWorker.ready;
+    await registration.update();
+    registration = await waitForActiveWorker(registration);
     const subscription =
-      (await readyRegistration.pushManager.getSubscription()) ??
-      (await readyRegistration.pushManager.subscribe({
+      (await registration.pushManager.getSubscription()) ??
+      (await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: toUint8Array(publicVapidKey),
       }));
