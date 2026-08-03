@@ -372,8 +372,8 @@ export default function EnquiryKanban({
   }
 
   return (
-    <div className="overflow-x-auto pb-2">
-      <div className="grid min-w-[1320px] grid-cols-5 gap-4">
+    <div className="pb-2 md:overflow-x-auto">
+      <div className="grid w-full grid-cols-1 gap-4 md:min-w-[1320px] md:grid-cols-5">
         {PIPELINE.map((column) => {
           const columnEnquiries = enquiries.filter(
             (enquiry) => getPipelineKey(enquiry.Status) === column.key
