@@ -15,7 +15,7 @@ Each notification contains a generic staff action only and opens the relevant in
 - `push-subscription` also stores validated alert-category and quiet-hours preferences for the authenticated staff user.
 - `push-dispatch` is a server-only Supabase Edge Function that enforces those preferences before delivering queued events using Web Push VAPID credentials.
 - `20260730_v3180_staff_push_notifications.sql` creates the private subscription/event tables and queues new enquiries and trial changes. The dispatcher adds overdue follow-up events.
-- `20260730_v3181_staff_push_preferences.sql` creates the private preference table. The browser has no direct access to subscriptions, events, or preferences.
+- `20260730_v3181_staff_push_preferences.sql` creates the private preference and per-staff delivery-receipt tables. The browser has no direct access to subscriptions, events, preferences, or delivery receipts.
 
 No provider account is required; browser push services are used directly through VAPID. The VAPID private key and dispatcher secret are never sent to the browser.
 
@@ -65,7 +65,7 @@ The existing Settings card also lets each active staff user choose whether to re
 
 All three categories are enabled by default. Quiet hours are disabled by default, so the current immediate-delivery behavior remains unchanged. When enabled, quiet hours use the selected IANA timezone and hold matching alerts until the period ends; a period may cross midnight (for example, 21:00 to 08:00).
 
-Category preferences and quiet hours are validated and saved only by the authenticated `push-subscription` Edge Function. The dispatcher applies them server-side. It builds each outgoing payload from a fixed event-type allowlist, so notification titles, bodies, and routes remain generic even if queued data is altered. No names, contact details, payment data, or other PII is sent in a notification.
+Category preferences and quiet hours are validated and saved only by the authenticated `push-subscription` Edge Function. The dispatcher applies them server-side and records delivery separately for each subscribed staff account. A recipient in quiet hours remains pending until a later dispatcher run outside the quiet period; delivery to another staff member does not discard that pending alert. It builds each outgoing payload from a fixed event-type allowlist, so notification titles, bodies, and routes remain generic even if queued data is altered. No names, contact details, payment data, or other PII is sent in a notification.
 
 ## Deployment constraints
 
