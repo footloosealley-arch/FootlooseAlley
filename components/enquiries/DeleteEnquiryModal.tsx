@@ -19,9 +19,9 @@ export default function DeleteEnquiryModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-2 sm:p-4">
 
-      <div className="w-full max-w-md rounded-xl bg-white p-6">
+      <div className="max-h-[calc(100dvh-1rem)] w-full max-w-md overflow-y-auto rounded-xl bg-white p-4 shadow-xl sm:p-6">
 
         <h2 className="mb-4 text-xl font-bold text-red-600">
           Delete Enquiry
