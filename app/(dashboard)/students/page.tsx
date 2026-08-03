@@ -1,11 +1,15 @@
 "use client";
 
-import {
-  useMemo,
-  useState,
-} from "react";
+import Link from "next/link";
+import { useMemo, useState } from "react";
 
-import { Activity, BadgeIndianRupee, UserCheck, Users } from "lucide-react";
+import {
+  Activity,
+  Archive,
+  BadgeIndianRupee,
+  UserCheck,
+  Users,
+} from "lucide-react";
 
 import PageHeader from "@/components/layout/PageHeader";
 
@@ -24,15 +28,8 @@ import LoadingCard from "@/components/common/LoadingCard";
 import { useAsync } from "@/hooks/useAsync";
 import { studentsService } from "@/services/students.service";
 
-type StudentSortField =
-  | "created_at"
-  | "Name"
-  | "Fees_due"
-  | "join_date";
-
-type StudentSortOrder =
-  | "asc"
-  | "desc";
+type StudentSortField = "created_at" | "Name" | "Fees_due" | "join_date";
+type StudentSortOrder = "asc" | "desc";
 
 const VALID_SORT_FIELDS: StudentSortField[] = [
   "created_at",
@@ -41,111 +38,52 @@ const VALID_SORT_FIELDS: StudentSortField[] = [
   "join_date",
 ];
 
-function normalizeSortField(
-  value: string
-): StudentSortField {
-  if (
-    VALID_SORT_FIELDS.includes(
-      value as StudentSortField
-    )
-  ) {
+function normalizeSortField(value: string): StudentSortField {
+  if (VALID_SORT_FIELDS.includes(value as StudentSortField)) {
     return value as StudentSortField;
   }
 
   return "Name";
 }
 
-function normalizeSortOrder(
-  value: string
-): StudentSortOrder {
-  return value === "desc"
-    ? "desc"
-    : "asc";
+function normalizeSortOrder(value: string): StudentSortOrder {
+  return value === "desc" ? "desc" : "asc";
 }
 
 export default function StudentsPage() {
-  const [search, setSearch] =
-    useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [addStudentOpen, setAddStudentOpen] = useState(false);
 
-  const [page, setPage] =
-    useState(1);
+  const [filters, setFilters] = useState<StudentFilterValues>({
+    status: "",
+    classId: "",
+    instructorId: "",
+    sortBy: "Name",
+    sortOrder: "asc",
+  });
 
-  const [pageSize, setPageSize] =
-    useState(20);
+  const status = filters.status;
+  const classId = filters.classId;
+  const instructorId = filters.instructorId;
+  const sortBy = normalizeSortField(filters.sortBy);
+  const sortOrder = normalizeSortOrder(filters.sortOrder);
 
-  const [
-    addStudentOpen,
-    setAddStudentOpen,
-  ] = useState(false);
-
-  const [filters, setFilters] =
-    useState<StudentFilterValues>({
-      status: "",
-      classId: "",
-      instructorId: "",
-      sortBy: "Name",
-      sortOrder: "asc",
-    });
-
-  const status =
-    filters.status;
-
-  const classId =
-    filters.classId;
-
-  const instructorId =
-    filters.instructorId;
-
-  const sortBy =
-    normalizeSortField(
-      filters.sortBy
-    );
-
-  const sortOrder =
-    normalizeSortOrder(
-      filters.sortOrder
-    );
-
-  const {
-    data,
-    loading,
-    error,
-    refresh,
-  } = useAsync(
+  const { data, loading, error, refresh } = useAsync(
     async () => {
-      const [
-        students,
-        classes,
-        instructors,
-      ] = await Promise.all([
+      const [students, classes, instructors] = await Promise.all([
         studentsService.getStudents({
           page,
           pageSize,
-          search:
-            search.trim(),
-
-          status:
-            status ||
-            undefined,
-
-          classId:
-            classId
-              ? Number(classId)
-              : undefined,
-
-          instructorId:
-            instructorId
-              ? Number(
-                  instructorId
-                )
-              : undefined,
-
+          search: search.trim(),
+          status: status || undefined,
+          classId: classId ? Number(classId) : undefined,
+          instructorId: instructorId ? Number(instructorId) : undefined,
           sortBy,
           sortOrder,
         }),
-
         studentsService.getClasses(),
-
         studentsService.getInstructors(),
       ]);
 
@@ -160,47 +98,24 @@ export default function StudentsPage() {
       .join("|")
   );
 
-  const total =
-    data?.students.total ?? 0;
-
-  const students =
-    data?.students.data ?? [];
-
-  const classes =
-    data?.classes ?? [];
-
-  const instructors =
-    data?.instructors ?? [];
+  const total = data?.students.total ?? 0;
+  const students = data?.students.data ?? [];
+  const classes = data?.classes ?? [];
+  const instructors = data?.instructors ?? [];
 
   const pageCount = useMemo(() => {
-    return Math.max(
-      1,
-      Math.ceil(
-        total / pageSize
-      )
-    );
-  }, [
-    total,
-    pageSize,
-  ]);
+    return Math.max(1, Math.ceil(total / pageSize));
+  }, [total, pageSize]);
 
-  function handleFilterChange(
-    key: keyof StudentFilterValues,
-    value: string
-  ) {
+  function handleFilterChange(key: keyof StudentFilterValues, value: string) {
     setPage(1);
-
-    setFilters(
-      (previousFilters) => ({
-        ...previousFilters,
-        [key]: value,
-      })
-    );
+    setFilters((previousFilters) => ({
+      ...previousFilters,
+      [key]: value,
+    }));
   }
 
-  function handleSearchChange(
-    value: string
-  ) {
+  function handleSearchChange(value: string) {
     setPage(1);
     setSearch(value);
   }
@@ -210,9 +125,7 @@ export default function StudentsPage() {
   }
 
   function handleExport() {
-    alert(
-      "Excel export will be added later."
-    );
+    alert("Excel export will be added later.");
   }
 
   function handleAddStudent() {
@@ -221,148 +134,156 @@ export default function StudentsPage() {
 
   async function handleStudentAdded() {
     setPage(1);
-
     await refresh();
   }
 
   async function handleIntakeApproved() {
     setPage(1);
+    await refresh();
+  }
+
+  async function handleStudentDeleted() {
+    if (students.length === 1 && page > 1) {
+      setPage((currentPage) => Math.max(1, currentPage - 1));
+      return;
+    }
 
     await refresh();
   }
 
-  function handlePageChange(
-    newPage: number
-  ) {
-    if (
-      newPage < 1 ||
-      newPage > pageCount
-    ) {
+  function handlePageChange(newPage: number) {
+    if (newPage < 1 || newPage > pageCount) {
       return;
     }
 
     setPage(newPage);
   }
 
-  function handlePageSizeChange(
-    size: number
-  ) {
+  function handlePageSizeChange(size: number) {
     setPage(1);
     setPageSize(size);
   }
 
   return (
     <>
-      <PageHeader
-        title="Students"
-        description="Manage all studio students"
-      />
+      <PageHeader title="Students" description="Manage all studio students" />
+
+      <div className="mb-5 flex justify-end">
+        <Link
+          href="/students/archived"
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl border bg-background px-4 py-2 text-sm font-semibold transition hover:bg-muted"
+        >
+          <Archive className="h-4 w-4" />
+          Archived students
+        </Link>
+      </div>
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border bg-background p-4 shadow-sm">
-          <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Total students</span><Users className="h-4 w-4 text-primary" /></div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Total students</span>
+            <Users className="h-4 w-4 text-primary" />
+          </div>
           <p className="mt-2 text-2xl font-bold">{total}</p>
         </div>
         <div className="rounded-2xl border bg-background p-4 shadow-sm">
-          <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Active on page</span><UserCheck className="h-4 w-4 text-emerald-600" /></div>
-          <p className="mt-2 text-2xl font-bold">{students.filter((student) => (student.Status ?? "").toLowerCase() === "active").length}</p>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Active on page</span>
+            <UserCheck className="h-4 w-4 text-emerald-600" />
+          </div>
+          <p className="mt-2 text-2xl font-bold">
+            {
+              students.filter(
+                (student) => (student.Status ?? "").toLowerCase() === "active"
+              ).length
+            }
+          </p>
         </div>
         <div className="rounded-2xl border bg-background p-4 shadow-sm">
-          <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Fees due on page</span><BadgeIndianRupee className="h-4 w-4 text-rose-600" /></div>
-          <p className="mt-2 text-2xl font-bold">₹{students.reduce((sum, student) => sum + Number(student.Fees_due ?? 0), 0).toLocaleString("en-IN")}</p>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Fees due on page</span>
+            <BadgeIndianRupee className="h-4 w-4 text-rose-600" />
+          </div>
+          <p className="mt-2 text-2xl font-bold">
+            ₹
+            {students
+              .reduce(
+                (sum, student) => sum + Number(student.Fees_due ?? 0),
+                0
+              )
+              .toLocaleString("en-IN")}
+          </p>
         </div>
         <div className="rounded-2xl border bg-background p-4 shadow-sm">
-          <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Average attendance</span><Activity className="h-4 w-4 text-amber-600" /></div>
-          <p className="mt-2 text-2xl font-bold">{students.length ? Math.round(students.reduce((sum, student) => sum + Number(student.attendance_percentage ?? 0), 0) / students.length) : 0}%</p>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">
+              Average attendance
+            </span>
+            <Activity className="h-4 w-4 text-amber-600" />
+          </div>
+          <p className="mt-2 text-2xl font-bold">
+            {students.length
+              ? Math.round(
+                  students.reduce(
+                    (sum, student) =>
+                      sum + Number(student.attendance_percentage ?? 0),
+                    0
+                  ) / students.length
+                )
+              : 0}
+            %
+          </p>
         </div>
       </div>
 
-      <StudentIntakePanel
-        onStudentCreated={
-          handleIntakeApproved
-        }
-      />
+      <StudentIntakePanel onStudentCreated={handleIntakeApproved} />
 
       <StudentToolbar
         search={search}
-        onSearchChange={
-          handleSearchChange
-        }
-        onRefresh={
-          handleRefresh
-        }
-        onExport={
-          handleExport
-        }
-        onAddStudent={
-          handleAddStudent
-        }
+        onSearchChange={handleSearchChange}
+        onRefresh={handleRefresh}
+        onExport={handleExport}
+        onAddStudent={handleAddStudent}
       />
 
       <StudentFilters
         filters={filters}
         classes={classes}
-        instructors={
-          instructors
-        }
-        onChange={
-          handleFilterChange
-        }
+        instructors={instructors}
+        onChange={handleFilterChange}
       />
 
-      {loading && (
-        <LoadingCard title="Loading Students..." />
+      {loading && <LoadingCard title="Loading Students..." />}
+
+      {!loading && error && (
+        <ErrorCard
+          title="Unable to load students"
+          message={error.message}
+          onRetry={handleRefresh}
+        />
       )}
 
-      {!loading &&
-        error && (
-          <ErrorCard
-            title="Unable to load students"
-            message={
-              error.message
-            }
-            onRetry={
-              handleRefresh
-            }
+      {!loading && !error && data && (
+        <>
+          <StudentTable
+            students={students}
+            onStudentDeleted={handleStudentDeleted}
           />
-        )}
 
-      {!loading &&
-        !error &&
-        data && (
-          <>
-            <StudentTable
-              students={
-                students
-              }
-            />
-
-            <StudentPagination
-              page={page}
-              pageSize={
-                pageSize
-              }
-              total={total}
-              onPageChange={
-                handlePageChange
-              }
-              onPageSizeChange={
-                handlePageSizeChange
-              }
-            />
-          </>
-        )}
+          <StudentPagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+          />
+        </>
+      )}
 
       <AddStudentDialog
-        open={
-          addStudentOpen
-        }
-        onOpenChange={
-          setAddStudentOpen
-        }
-        onStudentAdded={
-          handleStudentAdded
-        }
+        open={addStudentOpen}
+        onOpenChange={setAddStudentOpen}
+        onStudentAdded={handleStudentAdded}
       />
     </>
   );

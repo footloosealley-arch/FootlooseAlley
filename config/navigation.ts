@@ -14,6 +14,7 @@ import {
   MessageCircle,
   Bot,
   BellRing,
+  Cake,
 } from "lucide-react";
 
 export interface NavigationItem {
@@ -32,6 +33,11 @@ export const navigation: NavigationItem[] = [
     title: "Students",
     href: "/students",
     icon: Users,
+  },
+  {
+    title: "Birthdays",
+    href: "/birthdays",
+    icon: Cake,
   },
   {
     title: "Enquiries",

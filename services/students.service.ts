@@ -13,11 +13,7 @@ export interface StudentFilters {
   status?: string;
   classId?: number;
   instructorId?: number;
-  sortBy?:
-    | "Name"
-    | "join_date"
-    | "created_at"
-    | "Fees_due";
+  sortBy?: "Name" | "join_date" | "created_at" | "Fees_due";
   sortOrder?: "asc" | "desc";
   page?: number;
   pageSize?: number;
@@ -53,25 +49,14 @@ export interface StudentInstructorDetails {
   specialization: string | null;
 }
 
-export interface StudentWithRelations
-  extends Student {
+export interface StudentWithRelations extends Student {
   Classes?: StudentClassDetails | null;
-  Instructors?:
-    | StudentInstructorDetails
-    | null;
+  Instructors?: StudentInstructorDetails | null;
 }
 
-export interface StudentAttendanceRecord
-  extends Attendance {
-  Classes?: {
-    id: number;
-    class_name: string | null;
-  } | null;
-
-  Instructors?: {
-    id: number;
-    name: string | null;
-  } | null;
+export interface StudentAttendanceRecord extends Attendance {
+  Classes?: { id: number; class_name: string | null } | null;
+  Instructors?: { id: number; name: string | null } | null;
 }
 
 export interface StudentProfileData {
@@ -83,23 +68,16 @@ export interface StudentProfileData {
   membershipEvents: MembershipEvent[];
 }
 
+export type StudentRemovalResult = "deleted" | "archived";
+
 class StudentsService {
-  private validateStudentId(
-    id: number
-  ): void {
-    if (
-      !Number.isInteger(id) ||
-      id <= 0
-    ) {
-      throw new Error(
-        "Invalid student ID."
-      );
+  private validateStudentId(id: number): void {
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new Error("Invalid student ID.");
     }
   }
 
-  async getStudents(
-    filters: StudentFilters = {}
-  ): Promise<StudentListResponse> {
+  async getStudents(filters: StudentFilters = {}): Promise<StudentListResponse> {
     const {
       search = "",
       status,
@@ -116,452 +94,228 @@ class StudentsService {
       .select(
         `
           *,
-          Classes (
-            id,
-            class_name,
-            program
-          ),
-          Instructors (
-            id,
-            name
-          )
+          Classes (id, class_name, program),
+          Instructors (id, name)
         `,
-        {
-          count: "exact",
-        }
+        { count: "exact" }
       );
 
-    const normalizedSearch =
-      search.trim();
-
+    const normalizedSearch = search.trim();
     if (normalizedSearch) {
       query = query.or(
         `"Name".ilike.%${normalizedSearch}%,"Phone".ilike.%${normalizedSearch}%,student_code.ilike.%${normalizedSearch}%`
       );
     }
 
-    if (
-      status &&
-      status !== "All"
-    ) {
-      query = query.eq(
-        "Status",
-        status
-      );
+    if (status && status !== "All") {
+      query = query.eq("Status", status);
+    } else {
+      query = query.neq("Status", "Archived");
     }
 
-    if (classId) {
-      query = query.eq(
-        "class_id",
-        classId
-      );
-    }
+    if (classId) query = query.eq("class_id", classId);
+    if (instructorId) query = query.eq("instructor_id", instructorId);
 
-    if (instructorId) {
-      query = query.eq(
-        "instructor_id",
-        instructorId
-      );
-    }
+    query = query.order(sortBy, { ascending: sortOrder === "asc" });
 
-    query = query.order(sortBy, {
-      ascending:
-        sortOrder === "asc",
-    });
+    const safePage = Math.max(1, page);
+    const safePageSize = Math.max(1, pageSize);
+    const from = (safePage - 1) * safePageSize;
+    const to = from + safePageSize - 1;
 
-    const safePage =
-      Math.max(1, page);
+    const { data, error, count } = await query.range(from, to);
+    if (error) throw new Error(error.message || "Unable to load students.");
 
-    const safePageSize =
-      Math.max(1, pageSize);
-
-    const from =
-      (safePage - 1) *
-      safePageSize;
-
-    const to =
-      from +
-      safePageSize -
-      1;
-
-    query = query.range(
-      from,
-      to
-    );
-
-    const {
-      data,
-      error,
-      count,
-    } = await query;
-
-    if (error) {
-      throw new Error(
-        error.message ||
-          "Unable to load students."
-      );
-    }
-
-    return {
-      data:
-        (data ??
-          []) as Student[],
-      total: count ?? 0,
-    };
+    return { data: (data ?? []) as Student[], total: count ?? 0 };
   }
 
-  async getStudent(
-    id: number
-  ): Promise<StudentWithRelations> {
+  async getStudent(id: number): Promise<StudentWithRelations> {
     this.validateStudentId(id);
+    const { data, error } = await supabase
+      .from("Students")
+      .select(
+        `
+          *,
+          Classes (id, class_name, program, day, start_time, end_time),
+          Instructors (id, name, phone, specialization)
+        `
+      )
+      .eq("id", id)
+      .single();
 
-    const { data, error } =
-      await supabase
-        .from("Students")
-        .select(
-          `
-            *,
-            Classes (
-              id,
-              class_name,
-              program,
-              day,
-              start_time,
-              end_time
-            ),
-            Instructors (
-              id,
-              name,
-              phone,
-              specialization
-            )
-          `
-        )
-        .eq("id", id)
-        .single();
-
-    if (error) {
-      throw new Error(
-        error.message ||
-          "Unable to load student."
-      );
-    }
-
+    if (error) throw new Error(error.message || "Unable to load student.");
     return data as StudentWithRelations;
   }
 
-  async getStudentById(
-    id: number
-  ): Promise<StudentWithRelations | null> {
+  async getStudentById(id: number): Promise<StudentWithRelations | null> {
     this.validateStudentId(id);
+    const { data, error } = await supabase
+      .from("Students")
+      .select(
+        `
+          *,
+          Classes (id, class_name, program, day, start_time, end_time),
+          Instructors (id, name, phone, specialization)
+        `
+      )
+      .eq("id", id)
+      .maybeSingle();
 
-    const { data, error } =
-      await supabase
-        .from("Students")
-        .select(
-          `
-            *,
-            Classes (
-              id,
-              class_name,
-              program,
-              day,
-              start_time,
-              end_time
-            ),
-            Instructors (
-              id,
-              name,
-              phone,
-              specialization
-            )
-          `
-        )
-        .eq("id", id)
-        .maybeSingle();
-
-    if (error) {
-      throw new Error(
-        error.message ||
-          "Unable to load student."
-      );
-    }
-
-    if (!data) {
-      return null;
-    }
-
-    return data as StudentWithRelations;
+    if (error) throw new Error(error.message || "Unable to load student.");
+    return data ? (data as StudentWithRelations) : null;
   }
 
-  async getStudentProfile(
-    id: number
-  ): Promise<StudentProfileData | null> {
+  async getStudentProfile(id: number): Promise<StudentProfileData | null> {
     this.validateStudentId(id);
+    const student = await this.getStudentById(id);
+    if (!student) return null;
 
-    const student =
-      await this.getStudentById(id);
+    const [attendance, payments, notes, memberships, membershipEvents] =
+      await Promise.all([
+        this.getStudentAttendance(id),
+        this.getStudentPayments(id),
+        this.getStudentNotes(id),
+        this.getStudentMemberships(id),
+        this.getStudentMembershipEvents(id),
+      ]);
 
-    if (!student) {
-      return null;
-    }
-
-    const [
-      attendance,
-      payments,
-      notes,
-      memberships,
-      membershipEvents,
-    ] = await Promise.all([
-      this.getStudentAttendance(id),
-      this.getStudentPayments(id),
-      this.getStudentNotes(id),
-      this.getStudentMemberships(id),
-      this.getStudentMembershipEvents(id),
-    ]);
-
-    return {
-      student,
-      attendance,
-      payments,
-      notes,
-      memberships,
-      membershipEvents,
-    };
+    return { student, attendance, payments, notes, memberships, membershipEvents };
   }
 
-  async createStudent(
-    student: Partial<Student>
-  ): Promise<Student> {
-    const { data, error } =
-      await supabase
-        .from("Students")
-        .insert(student)
-        .select()
-        .single();
+  async createStudent(student: Partial<Student>): Promise<Student> {
+    const { data, error } = await supabase
+      .from("Students")
+      .insert(student)
+      .select()
+      .single();
 
-    if (error) {
-      throw new Error(
-        error.message ||
-          "Unable to create student."
-      );
-    }
-
+    if (error) throw new Error(error.message || "Unable to create student.");
     return data as Student;
   }
 
-  async updateStudent(
-    id: number,
-    student: Partial<Student>
-  ): Promise<Student> {
+  async updateStudent(id: number, student: Partial<Student>): Promise<Student> {
     this.validateStudentId(id);
+    const { data, error } = await supabase
+      .from("Students")
+      .update(student)
+      .eq("id", id)
+      .select()
+      .single();
 
-    const { data, error } =
-      await supabase
-        .from("Students")
-        .update(student)
-        .eq("id", id)
-        .select()
-        .single();
-
-    if (error) {
-      throw new Error(
-        error.message ||
-          "Unable to update student."
-      );
-    }
-
+    if (error) throw new Error(error.message || "Unable to update student.");
     return data as Student;
   }
 
-  async deleteStudent(
-    id: number
-  ): Promise<void> {
+  async deleteStudent(id: number): Promise<StudentRemovalResult> {
     this.validateStudentId(id);
 
-    const { error } =
-      await supabase
-        .from("Students")
-        .delete()
-        .eq("id", id);
+    const { error: paymentDeleteError } = await supabase
+      .from("Payments")
+      .delete()
+      .eq("student_id", id);
 
-    if (error) {
+    if (paymentDeleteError) {
       throw new Error(
-        error.message ||
-          "Unable to delete student."
-      );
-    }
-  }
-
-  async freezeMembership(
-    studentId: number
-  ): Promise<void> {
-    this.validateStudentId(
-      studentId
-    );
-
-    const { error } =
-      await supabase
-        .from("Students")
-        .update({
-          membership_frozen: true,
-        })
-        .eq("id", studentId);
-
-    if (error) {
-      throw new Error(
-        error.message ||
-          "Unable to freeze membership."
-      );
-    }
-  }
-
-  async activateMembership(
-    studentId: number
-  ): Promise<void> {
-    this.validateStudentId(
-      studentId
-    );
-
-    const { error } =
-      await supabase
-        .from("Students")
-        .update({
-          membership_frozen: false,
-        })
-        .eq("id", studentId);
-
-    if (error) {
-      throw new Error(
-        error.message ||
-          "Unable to activate membership."
-      );
-    }
-  }
-
-  async getStudentAttendance(
-    studentId: number
-  ): Promise<
-    StudentAttendanceRecord[]
-  > {
-    this.validateStudentId(
-      studentId
-    );
-
-    const { data, error } =
-      await supabase
-        .from("Attendance")
-        .select(
-          `
-            *,
-            Classes (
-              id,
-              class_name
-            ),
-            Instructors (
-              id,
-              name
-            )
-          `
-        )
-        .eq(
-          "student_id",
-          studentId
-        )
-        .order("date", {
-          ascending: false,
-        });
-
-    if (error) {
-      throw new Error(
-        error.message ||
-          "Unable to load attendance."
+        paymentDeleteError.message ||
+          "Unable to delete the student's payment records."
       );
     }
 
-    return (
-      data ?? []
-    ) as StudentAttendanceRecord[];
-  }
+    const { error } = await supabase.from("Students").delete().eq("id", id);
+    if (!error) return "deleted";
 
-  async getStudentPayments(
-    studentId: number
-  ): Promise<Payment[]> {
-    this.validateStudentId(
-      studentId
-    );
+    const isReferencedStudent =
+      error.code === "23503" ||
+      error.message.toLowerCase().includes("foreign key constraint");
 
-    const { data, error } =
-      await supabase
-        .from("Payments")
-        .select("*")
-        .eq(
-          "student_id",
-          studentId
-        )
-        .order(
-          "payment_date",
-          {
-            ascending: false,
-          }
-        )
-        .order("created_at", {
-          ascending: false,
-        });
+    if (!isReferencedStudent) {
+      throw new Error(error.message || "Unable to remove student.");
+    }
 
-    if (error) {
+    const { error: archiveError } = await supabase
+      .from("Students")
+      .update({
+        Status: "Archived",
+        membership_frozen: true,
+      })
+      .eq("id", id);
+
+    if (archiveError) {
       throw new Error(
-        error.message ||
-          "Unable to load payments."
+        archiveError.message ||
+          "Payment records were removed, but another linked record prevented student deletion. The student could not be archived."
       );
     }
 
-    return (
-      data ?? []
-    ) as Payment[];
+    return "archived";
   }
 
-  async getStudentNotes(
-    studentId: number
-  ): Promise<StudentNote[]> {
-    this.validateStudentId(
-      studentId
-    );
+  async freezeMembership(studentId: number): Promise<void> {
+    this.validateStudentId(studentId);
+    const { error } = await supabase
+      .from("Students")
+      .update({ membership_frozen: true })
+      .eq("id", studentId);
+    if (error) throw new Error(error.message || "Unable to freeze membership.");
+  }
 
-    const { data, error } =
-      await supabase
-        .from("Student_Notes")
-        .select("*")
-        .eq(
-          "student_id",
-          studentId
-        )
-        .order("created_at", {
-          ascending: false,
-        });
+  async activateMembership(studentId: number): Promise<void> {
+    this.validateStudentId(studentId);
+    const { error } = await supabase
+      .from("Students")
+      .update({ membership_frozen: false })
+      .eq("id", studentId);
+    if (error) throw new Error(error.message || "Unable to activate membership.");
+  }
+
+  async getStudentAttendance(studentId: number): Promise<StudentAttendanceRecord[]> {
+    this.validateStudentId(studentId);
+    const { data, error } = await supabase
+      .from("Attendance")
+      .select(
+        `
+          *,
+          Classes (id, class_name),
+          Instructors (id, name)
+        `
+      )
+      .eq("student_id", studentId)
+      .order("date", { ascending: false });
+
+    if (error) throw new Error(error.message || "Unable to load attendance.");
+    return (data ?? []) as StudentAttendanceRecord[];
+  }
+
+  async getStudentPayments(studentId: number): Promise<Payment[]> {
+    this.validateStudentId(studentId);
+    const { data, error } = await supabase
+      .from("Payments")
+      .select("*")
+      .eq("student_id", studentId)
+      .order("payment_date", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message || "Unable to load payments.");
+    return (data ?? []) as Payment[];
+  }
+
+  async getStudentNotes(studentId: number): Promise<StudentNote[]> {
+    this.validateStudentId(studentId);
+    const { data, error } = await supabase
+      .from("Student_Notes")
+      .select("*")
+      .eq("student_id", studentId)
+      .order("created_at", { ascending: false });
 
     if (error) {
       const missingTable =
         error.code === "42P01" ||
-        error.message
-          .toLowerCase()
-          .includes(
-            "student_notes"
-          );
-
-      if (missingTable) {
-        return [];
-      }
-
-      throw new Error(
-        error.message ||
-          "Unable to load notes."
-      );
+        error.message.toLowerCase().includes("student_notes");
+      if (missingTable) return [];
+      throw new Error(error.message || "Unable to load notes.");
     }
 
-    return (
-      data ?? []
-    ) as StudentNote[];
+    return (data ?? []) as StudentNote[];
   }
 
   async getStudentMemberships(studentId: number): Promise<Membership[]> {
@@ -589,89 +343,41 @@ class StudentsService {
   }
 
   async getClasses() {
-    const { data, error } =
-      await supabase
-        .from("Classes")
-        .select("*")
-        .eq(
-          "status",
-          "Active"
-        )
-        .order("class_name");
-
-    if (error) {
-      throw new Error(
-        error.message ||
-          "Unable to load classes."
-      );
-    }
-
+    const { data, error } = await supabase
+      .from("Classes")
+      .select("*")
+      .eq("status", "Active")
+      .order("class_name");
+    if (error) throw new Error(error.message || "Unable to load classes.");
     return data ?? [];
   }
 
   async getInstructors() {
-    const { data, error } =
-      await supabase
-        .from("Instructors")
-        .select("*")
-        .eq(
-          "status",
-          "Active"
-        )
-        .order("name");
-
-    if (error) {
-      throw new Error(
-        error.message ||
-          "Unable to load instructors."
-      );
-    }
-
+    const { data, error } = await supabase
+      .from("Instructors")
+      .select("*")
+      .eq("status", "Active")
+      .order("name");
+    if (error) throw new Error(error.message || "Unable to load instructors.");
     return data ?? [];
   }
 
-  async studentExists(
-    phone: string,
-    excludeStudentId?: number
-  ): Promise<boolean> {
-    const normalizedPhone =
-      phone.trim();
-
-    if (!normalizedPhone) {
-      return false;
-    }
+  async studentExists(phone: string, excludeStudentId?: number): Promise<boolean> {
+    const normalizedPhone = phone.trim();
+    if (!normalizedPhone) return false;
 
     let query = supabase
       .from("Students")
-      .select("*", {
-        count: "exact",
-        head: true,
-      })
-      .eq(
-        "Phone",
-        normalizedPhone
-      );
+      .select("*", { count: "exact", head: true })
+      .eq("Phone", normalizedPhone)
+      .neq("Status", "Archived");
 
-    if (excludeStudentId) {
-      query = query.neq(
-        "id",
-        excludeStudentId
-      );
-    }
+    if (excludeStudentId) query = query.neq("id", excludeStudentId);
 
-    const { count, error } =
-      await query;
-
-    if (error) {
-      throw new Error(
-        error.message ||
-          "Unable to check student."
-      );
-    }
-
+    const { count, error } = await query;
+    if (error) throw new Error(error.message || "Unable to check student.");
     return (count ?? 0) > 0;
   }
 }
 
-export const studentsService =
-  new StudentsService();
+export const studentsService = new StudentsService();

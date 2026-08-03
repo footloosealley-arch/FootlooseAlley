@@ -9,10 +9,12 @@ import {
   CheckCircle2,
   Clock3,
   ExternalLink,
+  Loader2,
   MessageCircle,
   Phone,
   RefreshCw,
   Search,
+  Trash2,
   UserCheck,
   UserRoundX,
 } from "lucide-react";
@@ -164,6 +166,7 @@ function SummaryCard({
 export default function TrialOperationsDashboard() {
   const [trials, setTrials] = useState<TrialEnquiry[]>([]);
   const [savingId, setSavingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState<TrialFilter>("All");
   const [statusFilter, setStatusFilter] = useState<TrialStatus | "All">("All");
@@ -204,6 +207,33 @@ export default function TrialOperationsDashboard() {
       toast.success("Trial updated.");
     }
     setSavingId(null);
+  }
+
+  async function deleteTrial(trial: TrialEnquiry) {
+    const name = trial.Name?.trim() || "this trial booking";
+    const confirmed = window.confirm(
+      `Delete the trial booking for ${name}?\n\nThis will delete the complete enquiry record and cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setDeletingId(trial.id);
+
+      const { error } = await supabase
+        .from("Enquiries")
+        .delete()
+        .eq("id", trial.id);
+
+      if (error) throw error;
+
+      setTrials((current) => current.filter((item) => item.id !== trial.id));
+      toast.success("Trial booking deleted successfully.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to delete trial booking.");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   const today = getLocalDateString();
@@ -337,7 +367,7 @@ export default function TrialOperationsDashboard() {
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">
           {filteredTrials.map((trial) => {
-            const disabled = savingId === trial.id;
+            const disabled = savingId === trial.id || deletingId === trial.id;
             const status = trial.trial_status ?? "Scheduled";
             const outcome = trial.trial_outcome ?? "Pending";
 
@@ -373,6 +403,20 @@ export default function TrialOperationsDashboard() {
                         </a>
                       </>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => void deleteTrial(trial)}
+                      disabled={disabled}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label={`Delete trial booking for ${trial.Name ?? "enquiry"}`}
+                      title="Delete trial booking"
+                    >
+                      {deletingId === trial.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </button>
                   </div>
                 </div>
 
@@ -417,8 +461,9 @@ export default function TrialOperationsDashboard() {
                     <textarea
                       key={`${trial.id}-${trial.trial_notes ?? ""}`}
                       defaultValue={trial.trial_notes ?? ""}
+                      disabled={disabled}
                       placeholder="Record feedback, objections, or the next action..."
-                      className="min-h-24 w-full resize-y rounded-xl border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      className="min-h-24 w-full resize-y rounded-xl border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
                       onBlur={(event) => {
                         const value = event.target.value.trim();
                         if (value !== (trial.trial_notes ?? "")) {
@@ -431,7 +476,11 @@ export default function TrialOperationsDashboard() {
 
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
                   <span className="text-xs text-muted-foreground">
-                    {disabled ? "Saving changes..." : "Changes save automatically"}
+                    {deletingId === trial.id
+                      ? "Deleting trial booking..."
+                      : savingId === trial.id
+                        ? "Saving changes..."
+                        : "Changes save automatically"}
                   </span>
 
                   <div className="flex flex-wrap gap-2">
