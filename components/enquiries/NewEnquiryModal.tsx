@@ -40,8 +40,8 @@ export default function NewEnquiryModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-2 sm:p-4">
-      <div className="max-h-[calc(100dvh-1rem)] w-full max-w-2xl overflow-y-auto overscroll-contain rounded-xl bg-white p-4 shadow-xl sm:max-h-[calc(100dvh-2rem)] sm:p-6">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-2 sm:p-4">
+      <div className="mx-auto my-2 w-full max-w-2xl rounded-xl bg-white p-4 shadow-xl sm:my-4 sm:p-6">
 
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
