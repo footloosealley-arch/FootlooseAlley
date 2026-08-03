@@ -12,7 +12,18 @@ interface PushStatusResponse {
   ok?: boolean;
   configured?: boolean;
   subscribed?: boolean;
+  preferences?: PushNotificationPreferences;
   error?: string;
+}
+
+export interface PushNotificationPreferences {
+  newEnquiriesEnabled: boolean;
+  trialChangesEnabled: boolean;
+  overdueFollowUpsEnabled: boolean;
+  quietHoursEnabled: boolean;
+  quietHoursStart: string;
+  quietHoursEnd: string;
+  timezone: string;
 }
 
 export interface PushNotificationStatus {
@@ -20,7 +31,18 @@ export interface PushNotificationStatus {
   configured: boolean;
   subscribed: boolean;
   permission: NotificationPermission | "unsupported";
+  preferences: PushNotificationPreferences;
 }
+
+export const defaultPushNotificationPreferences: PushNotificationPreferences = {
+  newEnquiriesEnabled: true,
+  trialChangesEnabled: true,
+  overdueFollowUpsEnabled: true,
+  quietHoursEnabled: false,
+  quietHoursStart: "21:00",
+  quietHoursEnd: "08:00",
+  timezone: "Asia/Kolkata",
+};
 
 function getPublicVapidKey(): string {
   return process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim() ?? "";
@@ -94,6 +116,12 @@ async function callSubscriptionFunction(
   return data ?? {};
 }
 
+function toPreferences(
+  value: PushNotificationPreferences | undefined
+): PushNotificationPreferences {
+  return value ?? defaultPushNotificationPreferences;
+}
+
 export const pushNotificationsService = {
   async getStatus(): Promise<PushNotificationStatus> {
     if (!isSupported()) {
@@ -102,6 +130,7 @@ export const pushNotificationsService = {
         configured: false,
         subscribed: false,
         permission: "unsupported",
+        preferences: defaultPushNotificationPreferences,
       };
     }
 
@@ -114,6 +143,7 @@ export const pushNotificationsService = {
       configured: response.configured === true && Boolean(getPublicVapidKey()),
       subscribed: Boolean(subscription) && response.subscribed === true,
       permission: Notification.permission,
+      preferences: toPreferences(response.preferences),
     };
   },
 
@@ -170,5 +200,14 @@ export const pushNotificationsService = {
       endpoint: subscription.endpoint,
     });
     await subscription.unsubscribe();
+  },
+
+  async updatePreferences(preferences: PushNotificationPreferences): Promise<PushNotificationPreferences> {
+    const response = await callSubscriptionFunction({
+      action: "update_preferences",
+      preferences,
+    });
+
+    return toPreferences(response.preferences);
   },
 };

@@ -1,15 +1,37 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bell, BellOff, LoaderCircle, RefreshCw, ShieldCheck } from "lucide-react";
+import {
+  Bell,
+  BellOff,
+  Clock3,
+  LoaderCircle,
+  RefreshCw,
+  ShieldCheck,
+  SlidersHorizontal,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
+  defaultPushNotificationPreferences,
   pushNotificationsService,
+  type PushNotificationPreferences,
   type PushNotificationStatus,
 } from "@/services/push-notifications.service";
+
+const timezoneSuggestions = Array.from(
+  new Set([
+    "Asia/Kolkata",
+    "UTC",
+    typeof Intl === "undefined"
+      ? "Asia/Kolkata"
+      : Intl.DateTimeFormat().resolvedOptions().timeZone,
+  ])
+).filter(Boolean);
 
 export default function PushNotificationSettings() {
   const [status, setStatus] = useState<PushNotificationStatus | null>(null);
@@ -78,9 +100,44 @@ export default function PushNotificationSettings() {
     }
   }
 
+  function updatePreferences(updates: Partial<PushNotificationPreferences>) {
+    setStatus((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        preferences: {
+          ...current.preferences,
+          ...updates,
+        },
+      };
+    });
+  }
+
+  async function savePreferences() {
+    if (!status) return;
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const preferences = await pushNotificationsService.updatePreferences(status.preferences);
+      setStatus((current) => (current ? { ...current, preferences } : current));
+      toast.success("Notification preferences saved.");
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "Unable to save notification preferences."
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const unsupported = status?.supported === false;
   const needsConfiguration = status?.supported && status.configured === false;
   const permissionDenied = status?.permission === "denied";
+  const preferences = status?.preferences ?? defaultPushNotificationPreferences;
 
   return (
     <section className="rounded-2xl border bg-background p-5 shadow-sm sm:p-6">
@@ -174,6 +231,142 @@ export default function PushNotificationSettings() {
             </Button>
           </>
         )}
+      </div>
+
+      <div className="mt-6 border-t pt-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+            <SlidersHorizontal className="h-4 w-4" />
+          </div>
+          <div>
+            <h3 className="font-semibold">Alert controls</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Choose which generic staff actions can reach this account. All alerts stay enabled by default.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          {[
+            {
+              id: "new-enquiries",
+              label: "New enquiries",
+              description: "Notify when a new enquiry needs attention.",
+              enabled: preferences.newEnquiriesEnabled,
+              update: (checked: boolean) => updatePreferences({ newEnquiriesEnabled: checked }),
+            },
+            {
+              id: "trial-changes",
+              label: "Trial changes",
+              description: "Notify when a trial is requested or rescheduled.",
+              enabled: preferences.trialChangesEnabled,
+              update: (checked: boolean) => updatePreferences({ trialChangesEnabled: checked }),
+            },
+            {
+              id: "overdue-follow-ups",
+              label: "Overdue follow-ups",
+              description: "Notify when a follow-up is overdue.",
+              enabled: preferences.overdueFollowUpsEnabled,
+              update: (checked: boolean) => updatePreferences({ overdueFollowUpsEnabled: checked }),
+            },
+          ].map((control) => (
+            <label
+              key={control.id}
+              htmlFor={control.id}
+              className="flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors hover:bg-muted/40"
+            >
+              <input
+                id={control.id}
+                type="checkbox"
+                checked={control.enabled}
+                onChange={(event) => control.update(event.target.checked)}
+                disabled={loading || saving || !status}
+                className="mt-0.5 h-4 w-4 rounded border-input accent-primary"
+              />
+              <span>
+                <span className="block text-sm font-medium">{control.label}</span>
+                <span className="mt-0.5 block text-sm text-muted-foreground">
+                  {control.description}
+                </span>
+              </span>
+            </label>
+          ))}
+        </div>
+
+        <div className="mt-5 rounded-xl bg-muted/40 p-4">
+          <div className="flex items-start gap-3">
+            <Clock3 className="mt-0.5 h-4 w-4 text-muted-foreground" />
+            <div className="min-w-0 flex-1">
+              <Label htmlFor="quiet-hours-enabled">Quiet hours</Label>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Hold selected alerts until your quiet period ends. Urgent-looking notification text is never used.
+              </p>
+            </div>
+            <input
+              id="quiet-hours-enabled"
+              type="checkbox"
+              checked={preferences.quietHoursEnabled}
+              onChange={(event) => updatePreferences({ quietHoursEnabled: event.target.checked })}
+              disabled={loading || saving || !status}
+              className="mt-0.5 h-4 w-4 rounded border-input accent-primary"
+            />
+          </div>
+
+          {preferences.quietHoursEnabled && (
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="quiet-hours-start">Start</Label>
+                <Input
+                  id="quiet-hours-start"
+                  type="time"
+                  value={preferences.quietHoursStart}
+                  onChange={(event) => updatePreferences({ quietHoursStart: event.target.value })}
+                  disabled={loading || saving || !status}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="quiet-hours-end">End</Label>
+                <Input
+                  id="quiet-hours-end"
+                  type="time"
+                  value={preferences.quietHoursEnd}
+                  onChange={(event) => updatePreferences({ quietHoursEnd: event.target.value })}
+                  disabled={loading || saving || !status}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="quiet-hours-timezone">Timezone</Label>
+                <Input
+                  id="quiet-hours-timezone"
+                  list="staff-timezones"
+                  value={preferences.timezone}
+                  onChange={(event) => updatePreferences({ timezone: event.target.value })}
+                  disabled={loading || saving || !status}
+                  aria-describedby="quiet-hours-timezone-help"
+                />
+                <datalist id="staff-timezones">
+                  {timezoneSuggestions.map((timezone) => (
+                    <option key={timezone} value={timezone} />
+                  ))}
+                </datalist>
+                <p id="quiet-hours-timezone-help" className="text-xs text-muted-foreground">
+                  Use an IANA timezone, for example Asia/Kolkata.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 flex justify-end">
+          <Button
+            variant="outline"
+            onClick={() => void savePreferences()}
+            disabled={loading || saving || !status}
+          >
+            {saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <SlidersHorizontal className="h-4 w-4" />}
+            Save alert controls
+          </Button>
+        </div>
       </div>
     </section>
   );
