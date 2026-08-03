@@ -23,9 +23,6 @@ import {
 
 import PageHeader from "@/components/layout/PageHeader";
 import NewEnquiryModal from "@/components/enquiries/NewEnquiryModal";
-import EditEnquiryModal, {
-  EditForm,
-} from "@/components/enquiries/EditEnquiryModal";
 import DeleteEnquiryModal from "@/components/enquiries/DeleteEnquiryModal";
 import ConvertStudentModal from "@/components/enquiries/ConvertStudentModal";
 import EnquiryTable, {
@@ -212,11 +209,6 @@ export default function EnquiriesPage() {
   ] = useState(false);
 
   const [
-    showEditModal,
-    setShowEditModal,
-  ] = useState(false);
-
-  const [
     showDeleteModal,
     setShowDeleteModal,
   ] = useState(false);
@@ -226,16 +218,8 @@ export default function EnquiriesPage() {
     setShowConvertModal,
   ] = useState(false);
 
-  const [editId, setEditId] =
-    useState<number | null>(null);
-
   const [form, setForm] =
     useState<EnquiryForm>({
-      ...EMPTY_FORM,
-    });
-
-  const [editForm, setEditForm] =
-    useState<EditForm>({
       ...EMPTY_FORM,
     });
 
@@ -418,55 +402,12 @@ export default function EnquiriesPage() {
     }));
   }
 
-  function handleEditFormChange(
-    event: React.ChangeEvent<
-      | HTMLInputElement
-      | HTMLTextAreaElement
-      | HTMLSelectElement
-    >
-  ) {
-    const {
-      name,
-      value,
-    } = event.target;
-
-    setEditForm(
-      (previous) => ({
-        ...previous,
-        [name]: value,
-      })
-    );
-  }
-
   function handleEdit(
     enquiry: Enquiry
   ) {
-    setEditId(enquiry.id);
-
-    setEditForm({
-      Name: enquiry.Name ?? "",
-      Phone: enquiry.Phone ?? "",
-      Email: enquiry.Email ?? "",
-      Program:
-        enquiry.Program ?? "",
-      Status:
-        enquiry.Status ?? "New",
-      Follow_up_date:
-        enquiry.Follow_up_date ??
-        "",
-      Notes: enquiry.Notes ?? "",
-      source:
-        enquiry.source ?? "",
-      assigned_to:
-        enquiry.assigned_to ?? "",
-      last_contacted:
-        enquiry.last_contacted ??
-        "",
-      trial_date:
-        enquiry.trial_date ?? "",
-    });
-
-    setShowEditModal(true);
+    router.push(
+      `/enquiries/${enquiry.id}/edit`
+    );
   }
 
   function handleDelete(
@@ -562,92 +503,6 @@ export default function EnquiriesPage() {
 
       alert(
         "Unable to save enquiry."
-      );
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function updateEnquiry() {
-    if (editId === null) {
-      return;
-    }
-
-    if (!editForm.Name.trim()) {
-      alert(
-        "Please enter the enquiry name."
-      );
-      return;
-    }
-
-    if (!editForm.Phone.trim()) {
-      alert(
-        "Please enter the phone number."
-      );
-      return;
-    }
-
-    try {
-      setSaving(true);
-
-      const { error } =
-        await supabase
-          .from("Enquiries")
-          .update({
-            Name:
-              editForm.Name.trim(),
-            Phone:
-              editForm.Phone.trim(),
-            Email:
-              editForm.Email.trim() ||
-              null,
-            Program:
-              editForm.Program.trim() ||
-              null,
-            Status:
-              editForm.Status ||
-              "New",
-            Follow_up_date:
-              editForm.Follow_up_date ||
-              null,
-            Notes:
-              editForm.Notes.trim() ||
-              null,
-            source:
-              editForm.source.trim() ||
-              null,
-            assigned_to:
-              editForm.assigned_to.trim() ||
-              null,
-            last_contacted:
-              editForm.last_contacted ||
-              null,
-            trial_date:
-              editForm.trial_date ||
-              null,
-          })
-          .eq("id", editId);
-
-      if (error) {
-        throw error;
-      }
-
-      setShowEditModal(false);
-      setEditId(null);
-
-      await loadData();
-
-      alert(
-        "Enquiry updated successfully."
-      );
-    } catch (error) {
-      console.error(
-        "Unable to update enquiry:",
-        error
-      );
-
-      alert(
-        "Unable to update enquiry."
       );
     } finally {
       setSaving(false);
@@ -1194,20 +1049,6 @@ export default function EnquiriesPage() {
         onSave={saveEnquiry}
         onChange={
           handleFormChange
-        }
-      />
-
-      <EditEnquiryModal
-        open={showEditModal}
-        saving={saving}
-        form={editForm}
-        onClose={() => {
-          setShowEditModal(false);
-          setEditId(null);
-        }}
-        onSave={updateEnquiry}
-        onChange={
-          handleEditFormChange
         }
       />
 

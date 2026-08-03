@@ -40,11 +40,11 @@ export default function NewEnquiryModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-2 sm:p-4">
-      <div className="mx-auto my-2 w-full max-w-2xl rounded-xl bg-white p-4 shadow-xl sm:my-4 sm:p-6">
+    <div className="fixed inset-0 z-50 bg-black/40 sm:flex sm:items-center sm:justify-center sm:p-4">
+      <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-white shadow-xl sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:max-w-2xl sm:rounded-xl">
 
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="flex shrink-0 items-center justify-between border-b px-4 py-4 sm:px-6">
           <h2 className="text-xl font-bold">
             New Enquiry
           </h2>
@@ -58,7 +58,8 @@ export default function NewEnquiryModal({
         </div>
 
         {/* Form */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="min-h-0 flex-1 touch-pan-y overflow-y-scroll overscroll-contain px-4 py-5 [-webkit-overflow-scrolling:touch] sm:px-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 
           {/* Name */}
           <div>
@@ -201,10 +202,11 @@ export default function NewEnquiryModal({
             />
           </div>
 
-                  </div>
+          </div>
+        </div>
 
         {/* Footer */}
-        <div className="mt-6 flex justify-end gap-3">
+        <div className="flex shrink-0 flex-col-reverse gap-2 border-t bg-white px-4 py-3 sm:flex-row sm:justify-end sm:px-6">
           <button
             type="button"
             onClick={onClose}
