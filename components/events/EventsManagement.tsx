@@ -1,20 +1,189 @@
 "use client";
+
 import Image from "next/image";
-import { useCallback,useEffect,useState } from "react"; import { CalendarDays,CheckCircle2,MessageCircle,PartyPopper,Plus,RefreshCw,XCircle } from "lucide-react"; import { toast } from "sonner";
-import BrandLogo from "@/components/branding/BrandLogo"; import ErrorCard from "@/components/common/ErrorCard"; import LoadingCard from "@/components/common/LoadingCard"; import PageHeader from "@/components/layout/PageHeader"; import StatCard from "@/components/ui-foundation/StatCard"; import { Badge } from "@/components/ui/badge"; import { Button } from "@/components/ui/button"; import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card"; import { Input } from "@/components/ui/input"; import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
-import { EVENT_STATUSES,EVENT_TYPES,eventsService,type EventStatus,type StudioEvent } from "@/services/events.service"; import EventFormDialog from "./EventFormDialog";
-const money=new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:2}); const friendlyDate=(date:string)=>new Intl.DateTimeFormat("en-IN",{dateStyle:"long"}).format(new Date(`${date}T00:00:00`)); const friendlyTime=(time:string)=>new Intl.DateTimeFormat("en-IN",{hour:"numeric",minute:"2-digit"}).format(new Date(`2000-01-01T${time}:00`));
-function localCalendarDate(date=new Date()){const year=date.getFullYear(),month=String(date.getMonth()+1).padStart(2,"0"),day=String(date.getDate()).padStart(2,"0");return `${year}-${month}-${day}`}
-export default function EventsManagement(){const [items,setItems]=useState<StudioEvent[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(""),[search,setSearch]=useState(""),[status,setStatus]=useState("All"),[type,setType]=useState("All"),[scope,setScope]=useState("All"),[open,setOpen]=useState(false),[editing,setEditing]=useState<StudioEvent|null>(null),[savingId,setSavingId]=useState<number|null>(null);
- const load=useCallback(async()=>{setLoading(true);setError("");try{setItems(await eventsService.getAll())}catch(e){setError(e instanceof Error?e.message:"Unable to load events.")}finally{setLoading(false)}},[]); useEffect(()=>{
-   // Initial remote-data synchronization.
-   // eslint-disable-next-line react-hooks/set-state-in-effect
-   void load()
- },[load]); const today=localCalendarDate(),month=today.slice(0,7);
- const filtered=items.filter(item=>{const q=search.trim().toLowerCase();return(!q||`${item.title} ${item.event_type} ${item.location} ${item.description??""}`.toLowerCase().includes(q))&&(status==="All"||item.status===status)&&(type==="All"||item.event_type===type)&&(scope==="All"||(scope==="Upcoming"?item.event_date>=today:item.event_date<today))});
- async function change(item:StudioEvent,next:EventStatus){setSavingId(item.id);try{await eventsService.setStatus(item.id,next);toast.success(`Event marked ${next.toLowerCase()}.`);await load()}catch(e){toast.error(e instanceof Error?e.message:"Unable to change event status.")}finally{setSavingId(null)}}
- function share(item:StudioEvent){const fee=Number(item.fee)===0?"Free":money.format(Number(item.fee)),contact=item.contact_phone||"8884978589",studioContact=contact!=="8884978589"?"\nFootloose Alley: 8884978589":"",photo=item.image_url?`\nEvent photo: ${item.image_url}`:"";const text=`${item.title}\nDate: ${friendlyDate(item.event_date)}\nTime: ${friendlyTime(item.start_time)} – ${friendlyTime(item.end_time)}\nLocation: ${item.location}\nFee: ${fee}\nContact: ${contact}${studioContact}${photo}`;window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,"_blank","noopener,noreferrer")}
- return <div className="space-y-6"><PageHeader title="Events Management" description="Plan, publish, and manage every Footloose Alley event." action={<Button type="button" onClick={()=>{setEditing(null);setOpen(true)}}><Plus/> Add Event</Button>}/><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><StatCard label="Total upcoming" value={items.filter(x=>x.status==="Upcoming"&&x.event_date>=today).length} icon={PartyPopper}/><StatCard label="Events this month" value={items.filter(x=>x.event_date.startsWith(month)).length} icon={CalendarDays}/><StatCard label="Completed" value={items.filter(x=>x.status==="Completed").length} icon={CheckCircle2}/><StatCard label="Cancelled" value={items.filter(x=>x.status==="Cancelled").length} icon={XCircle}/></div>
- <section className="space-y-4 rounded-2xl border bg-card p-4"><div className="grid gap-3 md:grid-cols-4"><Input aria-label="Search events" placeholder="Search events…" value={search} onChange={e=>setSearch(e.target.value)}/><Select value={status} onValueChange={v=>v&&setStatus(v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="All">All statuses</SelectItem>{EVENT_STATUSES.map(v=><SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent></Select><Select value={type} onValueChange={v=>v&&setType(v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="All">All types</SelectItem>{EVENT_TYPES.map(v=><SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent></Select><Select value={scope} onValueChange={v=>v&&setScope(v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["All","Upcoming","Past"].map(v=><SelectItem key={v} value={v}>{v} dates</SelectItem>)}</SelectContent></Select></div><div className="flex justify-end"><Button type="button" variant="ghost" size="sm" onClick={()=>void load()} disabled={loading}><RefreshCw className={loading?"animate-spin":""}/> Refresh</Button></div></section>
- {loading?<LoadingCard/>:error?<ErrorCard message={error} onRetry={()=>void load()}/>:filtered.length===0?<Card><CardContent className="py-12 text-center text-muted-foreground">No events match these filters.</CardContent></Card>:<div className="grid gap-4 lg:grid-cols-2">{filtered.map(item=><Card key={item.id} className="overflow-hidden"><div className="relative aspect-video bg-muted">{item.image_url?<Image src={item.image_url} alt={`${item.title} event`} fill className="object-cover" sizes="(min-width: 1024px) 50vw, 100vw"/>:<div className="flex h-full items-center justify-center bg-gradient-to-br from-violet-50 to-orange-50 p-8"><BrandLogo width={240} height={120} className="max-h-full object-contain opacity-80"/></div>}</div><CardHeader className="gap-2"><div className="flex items-start justify-between gap-3"><CardTitle>{item.title}</CardTitle><Badge variant="secondary">{item.status}</Badge></div><p className="text-sm font-medium text-primary">{item.event_type}</p></CardHeader><CardContent className="space-y-3"><div className="grid gap-1 text-sm sm:grid-cols-2"><p><b>Date:</b> {friendlyDate(item.event_date)}</p><p><b>Time:</b> {friendlyTime(item.start_time)} – {friendlyTime(item.end_time)}</p><p><b>Location:</b> {item.location}</p><p><b>Fee:</b> {Number(item.fee)===0?"Free":money.format(Number(item.fee))}</p><p><b>Capacity:</b> {item.max_capacity}</p></div>{item.description&&<p className="text-sm text-muted-foreground">{item.description}</p>}<div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={()=>{setEditing(item);setOpen(true)}}>Edit</Button><Button type="button" size="sm" variant="outline" onClick={()=>share(item)}><MessageCircle/> Share on WhatsApp</Button>{item.status==="Upcoming"&&<><Button type="button" size="sm" onClick={()=>void change(item,"Completed")} disabled={savingId===item.id}>Mark Completed</Button><Button type="button" size="sm" variant="destructive" onClick={()=>void change(item,"Cancelled")} disabled={savingId===item.id}>Cancel Event</Button></>}{(item.status==="Completed"||item.status==="Cancelled")&&<Button type="button" size="sm" onClick={()=>void change(item,"Upcoming")} disabled={savingId===item.id}>Reopen as Upcoming</Button>}</div></CardContent></Card>)}</div>}
- <EventFormDialog open={open} eventItem={editing} onOpenChange={next=>{setOpen(next);if(!next)setEditing(null)}} onSaved={()=>void load()}/></div>}
+import { useCallback, useEffect, useState } from "react";
+import { CalendarDays, CheckCircle2, Clock3, Copy, IndianRupee, MapPin, MessageCircle, Pencil, Plus, RefreshCw, Search, Trash2, Users } from "lucide-react";
+import { toast } from "sonner";
+
+import BrandLogo from "@/components/branding/BrandLogo";
+import ErrorCard from "@/components/common/ErrorCard";
+import LoadingCard from "@/components/common/LoadingCard";
+import SafeDeleteDialog from "@/components/common/SafeDeleteDialog";
+import PageHeader from "@/components/layout/PageHeader";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import StatCard from "@/components/ui-foundation/StatCard";
+import { EVENT_STATUSES, EVENT_TYPES, eventsService, type EventStatus, type StudioEvent } from "@/services/events.service";
+import EventFormDialog from "./EventFormDialog";
+
+const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 });
+const friendlyDate = (date: string) => new Intl.DateTimeFormat("en-IN", { dateStyle: "long" }).format(new Date(`${date}T00:00:00`));
+const friendlyTime = (time: string) => new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(`2000-01-01T${time}:00`));
+
+function localCalendarDate(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function statusTone(status: EventStatus): string {
+  if (status === "Upcoming") return "bg-emerald-100 text-emerald-700";
+  if (status === "Completed") return "bg-blue-100 text-blue-700";
+  if (status === "Cancelled") return "bg-red-100 text-red-700";
+  return "bg-amber-100 text-amber-700";
+}
+
+export default function EventsManagement() {
+  const [items, setItems] = useState<StudioEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("All");
+  const [type, setType] = useState("All");
+  const [scope, setScope] = useState("All");
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<StudioEvent | null>(null);
+  const [deleting, setDeleting] = useState<StudioEvent | null>(null);
+  const [savingId, setSavingId] = useState<number | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      setItems(await eventsService.getAll());
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to load events.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
+  }, [load]);
+
+  const today = localCalendarDate();
+  const month = today.slice(0, 7);
+  const filtered = (() => {
+    const query = search.trim().toLowerCase();
+    return items.filter((item) =>
+      (!query || `${item.title} ${item.event_type} ${item.location} ${item.description ?? ""}`.toLowerCase().includes(query)) &&
+      (status === "All" || item.status === status) &&
+      (type === "All" || item.event_type === type) &&
+      (scope === "All" || (scope === "Upcoming" ? item.event_date >= today : item.event_date < today))
+    );
+  })();
+
+  async function changeStatus(item: StudioEvent, next: EventStatus) {
+    setSavingId(item.id);
+    try {
+      await eventsService.setStatus(item.id, next);
+      toast.success(`Event marked ${next.toLowerCase()}.`);
+      await load();
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : "Unable to change event status.");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function duplicateEvent(item: StudioEvent) {
+    setSavingId(item.id);
+    try {
+      await eventsService.duplicate(item);
+      toast.success("Draft event copy created.");
+      await load();
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : "Unable to duplicate event.");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function deleteEvent() {
+    if (!deleting) return;
+    setSavingId(deleting.id);
+    try {
+      await eventsService.remove(deleting);
+      toast.success("Event permanently deleted.");
+      setDeleting(null);
+      await load();
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : "Unable to delete event.");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  function share(item: StudioEvent) {
+    const fee = Number(item.fee) === 0 ? "Free" : money.format(Number(item.fee));
+    const contact = item.contact_phone || "8884978589";
+    const studioContact = contact !== "8884978589" ? "\nFootloose Alley: 8884978589" : "";
+    const photo = item.image_url ? `\nEvent photo: ${item.image_url}` : "";
+    const description = item.description ? `\n${item.description}` : "";
+    const text = `${item.title}\nDate: ${friendlyDate(item.event_date)}\nTime: ${friendlyTime(item.start_time)} – ${friendlyTime(item.end_time)}\nLocation: ${item.location}\nFee: ${fee}\nContact: ${contact}${description}${studioContact}${photo}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+  }
+
+  const potentialRevenue = items.filter((item) => item.status === "Upcoming" && item.event_date >= today).reduce((sum, item) => sum + Number(item.fee) * item.max_capacity, 0);
+
+  return (
+    <div className="space-y-5 sm:space-y-6">
+      <PageHeader title="Events Management" description="Plan, publish and manage every Footloose Alley event." action={<Button type="button" className="w-full sm:w-auto" onClick={() => { setEditing(null); setOpen(true); }}><Plus /> Add event</Button>} />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+        <StatCard label="Upcoming" value={items.filter((item) => item.status === "Upcoming" && item.event_date >= today).length} icon={CalendarDays} />
+        <StatCard label="This month" value={items.filter((item) => item.event_date.startsWith(month)).length} icon={Clock3} />
+        <StatCard label="Completed" value={items.filter((item) => item.status === "Completed").length} icon={CheckCircle2} />
+        <StatCard label="Capacity value" value={money.format(potentialRevenue)} icon={IndianRupee} />
+      </div>
+
+      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+        <div className="grid gap-3 border-b p-3 sm:p-4 md:grid-cols-2 xl:grid-cols-[minmax(16rem,1fr)_repeat(3,12rem)]">
+          <label className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input className="h-11 pl-9" aria-label="Search events" placeholder="Search title, location or description" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+          <Select value={status} onValueChange={(value) => setStatus(value ?? "All")}><SelectTrigger className="h-11 w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="All">All statuses</SelectItem>{EVENT_STATUSES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select>
+          <Select value={type} onValueChange={(value) => setType(value ?? "All")}><SelectTrigger className="h-11 w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="All">All types</SelectItem>{EVENT_TYPES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select>
+          <Select value={scope} onValueChange={(value) => setScope(value ?? "All")}><SelectTrigger className="h-11 w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="All">All dates</SelectItem><SelectItem value="Upcoming">Upcoming dates</SelectItem><SelectItem value="Past">Past dates</SelectItem></SelectContent></Select>
+        </div>
+        <div className="flex items-center justify-between border-b px-4 py-2"><span className="text-xs text-muted-foreground">Showing {filtered.length} of {items.length}</span><Button type="button" variant="ghost" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className={loading ? "animate-spin" : ""} /> Refresh</Button></div>
+      </section>
+
+      {loading ? <LoadingCard /> : error ? <ErrorCard message={error} onRetry={() => void load()} /> : filtered.length === 0 ? <Card><CardContent className="py-12 text-center text-muted-foreground">No events match these filters.</CardContent></Card> : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {filtered.map((item) => (
+            <Card key={item.id} className="overflow-hidden p-0">
+              <div className="relative aspect-[16/8] bg-muted">{item.image_url ? <Image src={item.image_url} alt={`${item.title} event`} fill className="object-cover" sizes="(min-width: 1024px) 50vw, 100vw" /> : <div className="flex h-full items-center justify-center bg-gradient-to-br from-violet-50 to-orange-50 p-8"><BrandLogo width={240} height={120} className="max-h-full object-contain opacity-80" /></div>}</div>
+              <CardContent className="flex h-full flex-col p-4 sm:p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h2 className="text-lg font-semibold leading-tight">{item.title}</h2><p className="mt-1 text-sm font-medium text-primary">{item.event_type}</p></div><Badge className={statusTone(item.status)}>{item.status}</Badge></div>
+                <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+                  <p className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2.5"><CalendarDays className="size-4 text-primary" />{friendlyDate(item.event_date)}</p>
+                  <p className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2.5"><Clock3 className="size-4 text-primary" />{friendlyTime(item.start_time)}–{friendlyTime(item.end_time)}</p>
+                  <p className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2.5"><MapPin className="size-4 text-primary" />{item.location}</p>
+                  <p className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2.5"><Users className="size-4 text-primary" />Capacity {item.max_capacity}</p>
+                </div>
+                {item.description && <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">{item.description}</p>}
+                <p className="mt-3 text-sm font-semibold">{Number(item.fee) === 0 ? "Free entry" : money.format(Number(item.fee))}</p>
+                <div className="mt-auto grid grid-cols-2 gap-2 pt-4 sm:flex sm:flex-wrap">
+                  <Button type="button" size="sm" variant="outline" onClick={() => { setEditing(item); setOpen(true); }}><Pencil /> Edit</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => share(item)}><MessageCircle /> WhatsApp</Button>
+                  <Button type="button" size="sm" variant="outline" disabled={savingId === item.id} onClick={() => void duplicateEvent(item)}><Copy /> Duplicate</Button>
+                  {item.status === "Draft" && <Button type="button" size="sm" disabled={savingId === item.id} onClick={() => void changeStatus(item, "Upcoming")}>Publish</Button>}
+                  {item.status === "Upcoming" && <><Button type="button" size="sm" disabled={savingId === item.id} onClick={() => void changeStatus(item, "Completed")}>Complete</Button><Button type="button" size="sm" variant="destructive" disabled={savingId === item.id} onClick={() => void changeStatus(item, "Cancelled")}>Cancel</Button></>}
+                  {(item.status === "Completed" || item.status === "Cancelled") && <Button type="button" size="sm" disabled={savingId === item.id} onClick={() => void changeStatus(item, "Upcoming")}>Reopen</Button>}
+                  {(item.status === "Draft" || item.status === "Cancelled") && <Button type="button" size="sm" variant="outline" className="text-destructive hover:text-destructive sm:ml-auto" disabled={savingId === item.id} onClick={() => setDeleting(item)}><Trash2 /> Delete</Button>}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <EventFormDialog open={open} eventItem={editing} onOpenChange={(next) => { setOpen(next); if (!next) setEditing(null); }} onSaved={() => void load()} />
+      <SafeDeleteDialog open={Boolean(deleting)} title={`Delete ${deleting?.title ?? "event"}?`} description="Only draft or cancelled events can be permanently deleted. The event photo will also be removed." deleting={savingId === deleting?.id} onOpenChange={(next) => !next && setDeleting(null)} onConfirm={() => void deleteEvent()} />
+    </div>
+  );
+}
