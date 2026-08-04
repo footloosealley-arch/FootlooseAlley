@@ -18,6 +18,10 @@ export interface EventRegistration {
   email: string | null;
   payment_reference: string | null;
   registration_source: "Staff" | "Public Link";
+  coupon_code: string | null;
+  original_amount: number | null;
+  discount_amount: number;
+  amount_due: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -41,7 +45,7 @@ export interface EventRegistrationSummary {
   collected: number;
 }
 
-const fields = "id,event_id,participant_name,phone,email,payment_status,amount_paid,payment_reference,attendance_status,registration_source,notes,created_at,updated_at";
+const fields = "id,event_id,participant_name,phone,email,payment_status,amount_paid,payment_reference,attendance_status,registration_source,coupon_code,original_amount,discount_amount,amount_due,notes,created_at,updated_at";
 
 function normalize(input: EventRegistrationInput) {
   const participant_name = input.participant_name.trim();
