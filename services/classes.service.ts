@@ -18,6 +18,7 @@ export interface StudioClass {
   instructor: { name: string } | null;
   enrolled_count: number;
   attendance_count: number;
+  public_booking_enabled: boolean;
 }
 
 export interface ClassInput {
@@ -29,6 +30,7 @@ export interface ClassInput {
   instructor_id: number | null;
   max_capacity: number;
   status?: ClassStatus;
+  public_booking_enabled?: boolean;
 }
 
 export interface ActiveInstructor { id: number; name: string }
@@ -36,7 +38,7 @@ export interface ActiveInstructor { id: number; name: string }
 interface InstructorReference { id: number; name: string }
 interface ClassReference { class_id: number | null }
 
-const fields = "id,created_at,class_name,program,day,start_time,end_time,instructor_id,status,max_capacity";
+const fields = "id,created_at,class_name,program,day,start_time,end_time,instructor_id,status,max_capacity,public_booking_enabled";
 const dayOrder = new Map<string, number>(CLASS_DAYS.map((day, index) => [day, index]));
 
 function message(error: unknown, fallback: string) {
@@ -52,7 +54,7 @@ function normalize(input: ClassInput) {
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(input.start_time) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(input.end_time)) throw new Error("Enter valid start and end times.");
   if (input.start_time >= input.end_time) throw new Error("End time must be after start time.");
   if (!Number.isInteger(input.max_capacity) || input.max_capacity < 1 || input.max_capacity > 1000) throw new Error("Capacity must be between 1 and 1000.");
-  return { ...input, class_name, program, status: input.status ?? "Active" };
+  return { ...input, class_name, program, status: input.status ?? "Active", public_booking_enabled: input.public_booking_enabled ?? false };
 }
 
 async function ensureScheduleAvailable(input: ClassInput, currentId?: number): Promise<void> {
