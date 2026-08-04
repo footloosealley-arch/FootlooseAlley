@@ -53,6 +53,21 @@ export function normalizeEventInput(input: EventInput): EventInput {
   return { ...input, title, location, description, notes, contact_phone, fee: Number(input.fee.toFixed(2)) };
 }
 
+async function ensureEventIsUnique(input: EventInput, currentId?: number) {
+  let query = supabase
+    .from("Events")
+    .select("id")
+    .eq("title", input.title.trim())
+    .eq("event_date", input.event_date)
+    .eq("start_time", input.start_time)
+    .eq("location", input.location.trim())
+    .limit(1);
+  if (currentId) query = query.neq("id", currentId);
+  const { data, error } = await query;
+  if (error) throw new Error(errorMessage(error, "Unable to validate the event schedule."));
+  if ((data ?? []).length > 0) throw new Error("This event already exists at the selected date, time, and location.");
+}
+
 async function uploadImage(file: File) {
   validateEventImage(file);
   const path = `${new Date().getUTCFullYear()}/${crypto.randomUUID()}.${IMAGE_EXTENSIONS[file.type]}`;
@@ -75,8 +90,10 @@ async function getAll() {
   return sorted((data ?? []) as StudioEvent[]);
 }
 async function create(input: EventInput, image?: File | null) {
+  const normalized = normalizeEventInput(input);
+  await ensureEventIsUnique(normalized);
   const uploaded = image ? await uploadImage(image) : null;
-  const { data, error } = await supabase.from("Events").insert({ ...normalizeEventInput(input), ...uploaded }).select(fields).single();
+  const { data, error } = await supabase.from("Events").insert({ ...normalized, ...uploaded }).select(fields).single();
   if (error) {
     if (uploaded) await removeImage(uploaded.image_path);
     throw new Error(errorMessage(error, "Unable to create event."));
@@ -84,11 +101,13 @@ async function create(input: EventInput, image?: File | null) {
   return data as StudioEvent;
 }
 async function update(id: number, input: EventInput, image?: File | null, removePhoto = false) {
+  const normalized = normalizeEventInput(input);
+  await ensureEventIsUnique(normalized, id);
   const { data: existing, error: readError } = await supabase.from("Events").select("image_path,image_url").eq("id", id).single();
   if (readError) throw new Error(errorMessage(readError, "Unable to load the existing event photo."));
   const uploaded = image ? await uploadImage(image) : null;
   const imageChanges = uploaded ?? (removePhoto ? { image_path: null, image_url: null } : {});
-  const { data, error } = await supabase.from("Events").update({ ...normalizeEventInput(input), ...imageChanges, updated_at: new Date().toISOString() }).eq("id", id).select(fields).single();
+  const { data, error } = await supabase.from("Events").update({ ...normalized, ...imageChanges, updated_at: new Date().toISOString() }).eq("id", id).select(fields).single();
   if (error) {
     if (uploaded) await removeImage(uploaded.image_path);
     throw new Error(errorMessage(error, "Unable to update event."));
@@ -102,4 +121,34 @@ async function setStatus(id: number, status: EventStatus) {
   if (error) throw new Error(errorMessage(error, "Unable to change event status."));
   return data as StudioEvent;
 }
-export const eventsService = { getAll, create, update, setStatus };
+
+async function duplicate(event: StudioEvent) {
+  const copy: EventInput = {
+    title: `${event.title} (Copy)`,
+    event_type: event.event_type,
+    event_date: event.event_date,
+    start_time: event.start_time,
+    end_time: event.end_time,
+    location: event.location,
+    max_capacity: event.max_capacity,
+    fee: Number(event.fee),
+    status: "Draft",
+    description: event.description,
+    contact_phone: event.contact_phone,
+    notes: event.notes,
+  };
+  const { data, error } = await supabase.from("Events").insert(normalizeEventInput(copy)).select(fields).single();
+  if (error) throw new Error(errorMessage(error, "Unable to duplicate event."));
+  return data as StudioEvent;
+}
+
+async function remove(event: StudioEvent) {
+  if (!["Draft", "Cancelled"].includes(event.status)) {
+    throw new Error("Only draft or cancelled events can be permanently deleted.");
+  }
+  const { error } = await supabase.from("Events").delete().eq("id", event.id);
+  if (error) throw new Error(errorMessage(error, "Unable to delete event. Administrator access may be required."));
+  if (event.image_path) await removeImage(event.image_path);
+}
+
+export const eventsService = { getAll, create, update, setStatus, duplicate, remove };
