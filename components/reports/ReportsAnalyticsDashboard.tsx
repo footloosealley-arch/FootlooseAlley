@@ -215,6 +215,8 @@ export default function ReportsAnalyticsDashboard() {
       ["Event Revenue", data.summary.eventRevenue],
       ["Membership Refunds", data.summary.membershipRefunds],
       ["Event Refunds", data.summary.eventRefunds],
+      ["Event Expenses", data.summary.eventExpenses],
+      ["Event Profit", data.summary.eventProfit],
       ["Payment Count", data.summary.paymentCount],
       ["Average Payment", data.summary.averagePayment],
       ["Attendance", data.summary.attendance],
@@ -368,7 +370,7 @@ export default function ReportsAnalyticsDashboard() {
             </p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard
               title="Net Revenue"
               value={formatCurrency(data.summary.revenue)}
@@ -380,6 +382,8 @@ export default function ReportsAnalyticsDashboard() {
             <SummaryCard title="Event Revenue" value={formatCurrency(data.summary.eventRevenue)} subtitle="Verified event payments" icon={<IndianRupee className="h-5 w-5" />} tone="bg-violet-100 text-violet-700" />
             <SummaryCard title="Membership Refunds" value={formatCurrency(data.summary.membershipRefunds)} subtitle="Refunded membership payments" icon={<IndianRupee className="h-5 w-5" />} tone="bg-orange-100 text-orange-700" />
             <SummaryCard title="Event Refunds" value={formatCurrency(data.summary.eventRefunds)} subtitle="Full and partial event refunds" icon={<IndianRupee className="h-5 w-5" />} tone="bg-rose-100 text-rose-700" />
+            <SummaryCard title="Event Expenses" value={formatCurrency(data.summary.eventExpenses)} subtitle="Costs recorded against events" icon={<IndianRupee className="h-5 w-5" />} tone="bg-orange-100 text-orange-700" />
+            <SummaryCard title="Event Profit" value={formatCurrency(data.summary.eventProfit)} subtitle="Event revenue minus refunds and costs" icon={<TrendingUp className="h-5 w-5" />} tone={data.summary.eventProfit >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"} />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
