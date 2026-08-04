@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, IndianRupee, LoaderCircle, MessageCircle, Pencil, Plus, Search, Trash2, UserCheck, Users, X } from "lucide-react";
+import { BadgeCheck, CheckCircle2, IndianRupee, LoaderCircle, MessageCircle, Pencil, Plus, ReceiptText, Search, Trash2, UserCheck, Users, X } from "lucide-react";
 import { toast } from "sonner";
 
 import SafeDeleteDialog from "@/components/common/SafeDeleteDialog";
@@ -21,6 +21,7 @@ import {
   type EventRegistrationInput,
 } from "@/services/event-registrations.service";
 import type { StudioEvent } from "@/services/events.service";
+import EventPaymentReceiptDialog from "./EventPaymentReceiptDialog";
 
 interface Props {
   open: boolean;
@@ -61,6 +62,7 @@ export default function EventRegistrationsDialog({ open, eventItem, onOpenChange
   const [form, setForm] = useState<EventRegistrationInput>({ ...emptyForm });
   const [editing, setEditing] = useState<EventRegistration | null>(null);
   const [deleting, setDeleting] = useState<EventRegistration | null>(null);
+  const [receipt, setReceipt] = useState<EventRegistration | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
@@ -88,7 +90,7 @@ export default function EventRegistrationsDialog({ open, eventItem, onOpenChange
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return items.filter((item) => `${item.participant_name} ${item.phone} ${item.payment_status} ${item.attendance_status}`.toLowerCase().includes(query));
+    return items.filter((item) => `${item.participant_name} ${item.phone} ${item.payment_status} ${item.attendance_status} ${item.payment_reference ?? ""} ${item.receipt_number ?? ""}`.toLowerCase().includes(query)).sort((a, b) => Number(b.payment_status === "Pending" && Boolean(b.payment_reference)) - Number(a.payment_status === "Pending" && Boolean(a.payment_reference)) || b.created_at.localeCompare(a.created_at));
   }, [items, search]);
 
   const active = items.filter((item) => item.attendance_status !== "Cancelled");
@@ -152,6 +154,23 @@ export default function EventRegistrationsDialog({ open, eventItem, onOpenChange
     }
   }
 
+  async function confirmPayment(item: EventRegistration) {
+    setSaving(true); setError("");
+    try {
+      const confirmed = await eventRegistrationsService.confirmPayment(item.id);
+      toast.success(`Payment confirmed. Receipt ${confirmed.receipt_number} created.`);
+      setReceipt(confirmed); await load(); onChanged();
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "Unable to confirm payment."; setError(message); toast.error(message);
+    } finally { setSaving(false); }
+  }
+
+  function paymentConfirmationUrl(item: EventRegistration) {
+    const amount = Number(item.amount_paid).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const text = `Hi ${item.participant_name}, your payment of ₹${amount} for ${eventItem?.title ?? "the event"} has been confirmed. Receipt: ${item.receipt_number}. Thank you! — Footloose Alley`;
+    return `https://wa.me/${whatsappPhone(item.phone)}?text=${encodeURIComponent(text)}`;
+  }
+
   return (
     <>
       <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
@@ -167,6 +186,7 @@ export default function EventRegistrationsDialog({ open, eventItem, onOpenChange
             <div className="rounded-xl bg-muted/50 p-3 text-sm"><CheckCircle2 className="mb-1 size-4 text-primary" /><strong className="block text-lg">{items.filter((item) => item.payment_status === "Paid").length}</strong>Paid</div>
             <div className="rounded-xl bg-muted/50 p-3 text-sm"><IndianRupee className="mb-1 size-4 text-primary" /><strong className="block text-lg">₹{collected.toLocaleString("en-IN")}</strong>Collected</div>
           </div>
+          {items.some((item) => (item.payment_status === "Pending" && Boolean(item.payment_reference)) || (item.payment_status === "Paid" && !item.receipt_number)) && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><h3 className="font-bold text-amber-950">Payments awaiting verification or receipt</h3><p className="mt-1 text-sm text-amber-800">Review the submitted UPI reference before confirming payment or issuing a missing receipt.</p></div>}
 
           {showForm ? (
             <form onSubmit={submit} className="grid gap-4 rounded-2xl border bg-muted/20 p-4 sm:grid-cols-2">
@@ -195,8 +215,9 @@ export default function EventRegistrationsDialog({ open, eventItem, onOpenChange
                   {item.coupon_code && <p className="mt-2 text-xs font-medium text-emerald-700">Coupon {item.coupon_code}: ₹{Number(item.discount_amount).toLocaleString("en-IN")} off · ₹{Number(item.amount_due).toLocaleString("en-IN")} due</p>}
                   {item.group_size > 1 && <div className="mt-2 rounded-xl bg-blue-50 p-2.5 text-xs text-blue-900"><p className="font-semibold">Group booking · {item.group_size} participants</p><p className="mt-1">Additional: {item.additional_participant_names.join(", ")}</p></div>}
                   {item.payment_reference && <p className="mt-2 text-xs text-muted-foreground">UPI reference: {item.payment_reference}</p>}
+                  {item.receipt_number && <p className="mt-2 text-xs font-semibold text-emerald-700">Receipt: {item.receipt_number}</p>}
                   {item.notes && <p className="mt-3 text-sm text-muted-foreground">{item.notes}</p>}
-                  <div className="mt-4 grid grid-cols-3 gap-2"><Button size="sm" variant="outline" render={<a href={`https://wa.me/${whatsappPhone(item.phone)}`} target="_blank" rel="noreferrer" />}><MessageCircle /> Chat</Button><Button type="button" size="sm" variant="outline" onClick={() => startEdit(item)}><Pencil /> Edit</Button><Button type="button" size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setDeleting(item)}><Trash2 /> Delete</Button></div>
+                  <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">{((item.payment_status === "Pending" && Boolean(item.payment_reference)) || (item.payment_status === "Paid" && !item.receipt_number)) && <Button type="button" size="sm" onClick={() => void confirmPayment(item)} disabled={saving}><BadgeCheck /> {item.payment_status === "Paid" ? "Issue receipt" : "Confirm payment"}</Button>}{item.payment_status === "Paid" && item.receipt_number && <><Button type="button" size="sm" variant="outline" onClick={() => setReceipt(item)}><ReceiptText /> Receipt</Button><Button size="sm" variant="outline" render={<a href={paymentConfirmationUrl(item)} target="_blank" rel="noreferrer" />}><MessageCircle /> Confirm via WhatsApp</Button></>}<Button size="sm" variant="outline" render={<a href={`https://wa.me/${whatsappPhone(item.phone)}`} target="_blank" rel="noreferrer" />}><MessageCircle /> Chat</Button><Button type="button" size="sm" variant="outline" onClick={() => startEdit(item)}><Pencil /> Edit</Button><Button type="button" size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setDeleting(item)}><Trash2 /> Delete</Button></div>
                 </article>
               ))}
             </div>
@@ -204,6 +225,7 @@ export default function EventRegistrationsDialog({ open, eventItem, onOpenChange
         </DialogContent>
       </Dialog>
       <SafeDeleteDialog open={Boolean(deleting)} title={`Delete ${deleting?.participant_name ?? "participant"}?`} description="This permanently removes the event registration, payment and attendance record. Administrator access is required." deleting={saving} onOpenChange={(next) => !next && setDeleting(null)} onConfirm={() => void deleteParticipant()} />
+      <EventPaymentReceiptDialog open={Boolean(receipt)} registration={receipt} eventItem={eventItem} onOpenChange={(next) => !next && setReceipt(null)} />
     </>
   );
 }
