@@ -11,12 +11,15 @@ export interface StudioEvent {
   location: string; max_capacity: number; fee: number; status: EventStatus;
   description: string | null; contact_phone: string | null; notes: string | null;
   image_url: string | null; image_path: string | null;
+  public_registration_enabled: boolean; payment_upi_id: string | null;
+  payment_payee_name: string | null;
 }
 export interface EventInput {
   title: string; event_type: EventType; event_date: string; start_time: string;
   end_time: string; location: string; max_capacity: number; fee: number;
   status: EventStatus; description?: string | null; contact_phone?: string | null;
-  notes?: string | null;
+  notes?: string | null; public_registration_enabled?: boolean;
+  payment_upi_id?: string | null; payment_payee_name?: string | null;
 }
 
 const BUCKET = "event-images";
@@ -24,7 +27,7 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const IMAGE_EXTENSIONS: Record<string, string> = {
   "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
 };
-const fields = "id,created_at,updated_at,title,event_type,event_date,start_time,end_time,location,max_capacity,fee,status,description,contact_phone,notes,image_url,image_path";
+const fields = "id,created_at,updated_at,title,event_type,event_date,start_time,end_time,location,max_capacity,fee,status,description,contact_phone,notes,image_url,image_path,public_registration_enabled,payment_upi_id,payment_payee_name";
 
 function errorMessage(error: unknown, operation: string) {
   return error && typeof error === "object" && "message" in error
@@ -40,6 +43,8 @@ export function normalizeEventInput(input: EventInput): EventInput {
   const title = input.title.trim(), location = input.location.trim();
   const description = input.description?.trim() || null, notes = input.notes?.trim() || null;
   const rawContact = input.contact_phone?.trim() || "", contact_phone = rawContact.replace(/\D/g, "") || null;
+  const payment_upi_id = input.payment_upi_id?.trim() || null;
+  const payment_payee_name = input.payment_payee_name?.trim() || null;
   if (title.length < 2) throw new Error("Title must be at least 2 characters.");
   if (!EVENT_TYPES.includes(input.event_type)) throw new Error("Select a valid event type.");
   if (!EVENT_STATUSES.includes(input.status)) throw new Error("Select a valid status.");
@@ -50,7 +55,9 @@ export function normalizeEventInput(input: EventInput): EventInput {
   if (!Number.isInteger(input.max_capacity) || input.max_capacity < 1 || input.max_capacity > 10000) throw new Error("Capacity must be between 1 and 10,000.");
   if (!Number.isFinite(input.fee) || input.fee < 0) throw new Error("Fee must be zero or greater.");
   if (rawContact && (!contact_phone || contact_phone.length < 7 || contact_phone.length > 15)) throw new Error("Contact phone must contain between 7 and 15 digits.");
-  return { ...input, title, location, description, notes, contact_phone, fee: Number(input.fee.toFixed(2)) };
+  if (input.public_registration_enabled && input.fee > 0 && (!payment_upi_id || !payment_payee_name)) throw new Error("Add a UPI ID and payee name before enabling public registration for a paid event.");
+  if (payment_upi_id && !/^[A-Za-z0-9._-]{2,}@[A-Za-z0-9.-]{2,}$/.test(payment_upi_id)) throw new Error("Enter a valid UPI ID, such as studio@bank.");
+  return { ...input, title, location, description, notes, contact_phone, payment_upi_id, payment_payee_name, public_registration_enabled: input.public_registration_enabled ?? false, fee: Number(input.fee.toFixed(2)) };
 }
 
 async function ensureEventIsUnique(input: EventInput, currentId?: number) {
@@ -136,6 +143,9 @@ async function duplicate(event: StudioEvent) {
     description: event.description,
     contact_phone: event.contact_phone,
     notes: event.notes,
+    public_registration_enabled: false,
+    payment_upi_id: event.payment_upi_id,
+    payment_payee_name: event.payment_payee_name,
   };
   const { data, error } = await supabase.from("Events").insert(normalizeEventInput(copy)).select(fields).single();
   if (error) throw new Error(errorMessage(error, "Unable to duplicate event."));
