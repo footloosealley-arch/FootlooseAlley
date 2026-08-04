@@ -24,6 +24,9 @@ export interface EventRegistration {
   amount_due: number | null;
   group_size: number;
   additional_participant_names: string[];
+  receipt_number: string | null;
+  payment_verified_at: string | null;
+  payment_verified_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -47,7 +50,7 @@ export interface EventRegistrationSummary {
   collected: number;
 }
 
-const fields = "id,event_id,participant_name,phone,email,payment_status,amount_paid,payment_reference,attendance_status,registration_source,coupon_code,original_amount,discount_amount,amount_due,group_size,additional_participant_names,notes,created_at,updated_at";
+const fields = "id,event_id,participant_name,phone,email,payment_status,amount_paid,payment_reference,attendance_status,registration_source,coupon_code,original_amount,discount_amount,amount_due,group_size,additional_participant_names,receipt_number,payment_verified_at,payment_verified_by,notes,created_at,updated_at";
 
 function normalize(input: EventRegistrationInput) {
   const participant_name = input.participant_name.trim();
@@ -118,4 +121,10 @@ async function remove(id: number): Promise<void> {
   if (error) throw new Error(message(error, "Unable to delete participant. Administrator access may be required."));
 }
 
-export const eventRegistrationsService = { getByEvent, getSummaries, create, update, remove };
+async function confirmPayment(id: number): Promise<EventRegistration> {
+  const { data, error } = await supabase.rpc("confirm_event_registration_payment", { p_registration_id: id });
+  if (error) throw new Error(message(error, "Unable to confirm event payment."));
+  return data as EventRegistration;
+}
+
+export const eventRegistrationsService = { getByEvent, getSummaries, create, update, remove, confirmPayment };
