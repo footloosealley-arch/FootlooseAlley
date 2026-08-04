@@ -1,3 +1,6 @@
+-- Footloose Alley Studio Manager v4.7.0 event registrations.
+-- Safe to apply once before deploying the matching application release.
+
 begin;
 
 create table if not exists public."Event_Registrations" (
