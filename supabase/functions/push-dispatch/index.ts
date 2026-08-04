@@ -303,7 +303,11 @@ Deno.serve(async (request) => {
                   ...payload,
                   tag: event.dedupe_key,
                 }),
-                { TTL: 60 * 60 }
+                {
+                  TTL: 60 * 60 * 24,
+                  urgency: "high",
+                  topic: `footloose-${event.id}`.slice(0, 32),
+                }
               );
               return true;
             } catch (error) {

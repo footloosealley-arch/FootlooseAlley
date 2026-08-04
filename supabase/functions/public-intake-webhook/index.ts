@@ -571,6 +571,14 @@ Deno.serve(async (request) => {
         );
       }
 
+      const enquiryType = readField(fields, ["Enquiry Type"]);
+      const isTrialBooking = enquiryType === "Book a trial class";
+      const trialClassId = Number(readField(fields, ["Trial Class ID"]));
+      const requestedTrialDate = normalizeDate(readField(fields, ["Trial Date"]));
+      if (isTrialBooking && (!Number.isInteger(trialClassId) || trialClassId < 1 || !requestedTrialDate)) {
+        return jsonResponse(400, { ok: false, error: "Choose a trial class and date." });
+      }
+
       const {
         data,
         error,
@@ -590,7 +598,7 @@ Deno.serve(async (request) => {
                 "Program",
               ]),
             ),
-          Status: "New",
+          Status: isTrialBooking ? "Trial Booked" : "New",
           Notes:
             optionalText(
               readField(fields, [
@@ -607,6 +615,9 @@ Deno.serve(async (request) => {
             getSubmissionDate(
               body.submittedAt,
             ),
+          trial_date: isTrialBooking ? requestedTrialDate : null,
+          trial_status: isTrialBooking ? "Scheduled" : null,
+          trial_outcome: isTrialBooking ? "Pending" : null,
           google_form_response_id:
             responseId,
           intake_channel: "Footloose Alley App",
@@ -618,11 +629,37 @@ Deno.serve(async (request) => {
         throw error;
       }
 
+      let bookingStatus: string | null = null;
+      if (isTrialBooking) {
+        const { data: booking, error: bookingError } = await supabase.rpc("create_public_class_booking", {
+          p_class_id: trialClassId,
+          p_class_date: requestedTrialDate,
+          p_name: name.trim(),
+          p_phone: phone,
+          p_email: normalizeEmail(readField(fields, ["Email"])),
+        });
+        if (bookingError) {
+          await supabase.from("Enquiries").delete().eq("id", data.id);
+          if (bookingError.code === "23505") return jsonResponse(409, { ok: false, error: "This mobile number already has a trial booking for that class." });
+          throw bookingError;
+        }
+        bookingStatus = booking.status;
+        const { error: linkError } = await supabase.from("Class_Bookings").update({ enquiry_id: data.id, booking_source: "Enquiry Trial" }).eq("id", booking.id);
+        if (linkError) {
+          await supabase.from("Class_Bookings").delete().eq("id", booking.id);
+          await supabase.from("Enquiries").delete().eq("id", data.id);
+          throw linkError;
+        }
+        if (booking.status === "Waitlisted") await supabase.from("Enquiries").update({ "Status": "Trial Booked", trial_notes: "Waitlisted for selected trial class." }).eq("id", data.id);
+      }
+
       return jsonResponse(201, {
         ok: true,
         duplicate: false,
         kind,
         id: data.id,
+        bookingStatus,
+        message: isTrialBooking ? (bookingStatus === "Waitlisted" ? "Your enquiry is saved and you have been added to the trial-class waitlist." : "Your enquiry and trial-class booking have been confirmed.") : undefined,
       });
     }
 

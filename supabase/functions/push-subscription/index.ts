@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.110.8";
+import webpush from "npm:web-push@3.6.7";
 
 type SubscriptionInput = {
   endpoint?: unknown;
@@ -213,12 +214,14 @@ Deno.serve(async (request) => {
     );
 
     if (body.action === "status") {
+      const endpoint = typeof body.endpoint === "string" ? body.endpoint.trim() : "";
       const [{ data: subscription, error: subscriptionError }, { data: preferences, error: preferencesError }] =
         await Promise.all([
           supabase
             .from("push_subscriptions")
-            .select("id")
+            .select("id,last_seen_at,last_tested_at,last_delivery_status,last_delivery_error")
             .eq("user_id", userData.user.id)
+            .eq("endpoint", endpoint)
             .limit(1)
             .maybeSingle(),
           supabase
@@ -232,11 +235,26 @@ Deno.serve(async (request) => {
 
       if (subscriptionError) throw subscriptionError;
       if (preferencesError) throw preferencesError;
+      if (subscription) {
+        const lastSeenAt = new Date().toISOString();
+        const { error: seenError } = await supabase
+          .from("push_subscriptions")
+          .update({ last_seen_at: lastSeenAt, updated_at: lastSeenAt })
+          .eq("id", subscription.id);
+        if (seenError) throw seenError;
+        subscription.last_seen_at = lastSeenAt;
+      }
       return jsonResponse(200, {
         ok: true,
         configured,
         subscribed: Boolean(subscription),
         preferences: toPreferences(preferences),
+        diagnostics: subscription ? {
+          lastSeenAt: subscription.last_seen_at,
+          lastTestedAt: subscription.last_tested_at,
+          lastDeliveryStatus: subscription.last_delivery_status,
+          lastDeliveryError: subscription.last_delivery_error,
+        } : null,
       }, origin);
     }
 
@@ -260,12 +278,65 @@ Deno.serve(async (request) => {
             auth: subscription.auth,
             user_agent: cleanUserAgent(body.userAgent),
             updated_at: new Date().toISOString(),
+            last_seen_at: new Date().toISOString(),
           },
           { onConflict: "endpoint" }
         );
 
       if (error) throw error;
       return jsonResponse(200, { ok: true, configured: true, subscribed: true }, origin);
+    }
+
+    if (body.action === "test") {
+      if (!configured) return jsonResponse(503, { error: "Push delivery is not configured." }, origin);
+      const endpoint = typeof body.endpoint === "string" ? body.endpoint.trim() : "";
+      const { data: subscription, error: subscriptionError } = await supabase
+        .from("push_subscriptions")
+        .select("id,endpoint,p256dh,auth")
+        .eq("user_id", userData.user.id)
+        .eq("endpoint", endpoint)
+        .maybeSingle();
+      if (subscriptionError) throw subscriptionError;
+      if (!subscription) return jsonResponse(404, { error: "This device subscription was not found. Disable and enable notifications again." }, origin);
+
+      webpush.setVapidDetails(
+        Deno.env.get("VAPID_SUBJECT")!,
+        Deno.env.get("VAPID_PUBLIC_KEY")!,
+        Deno.env.get("VAPID_PRIVATE_KEY")!
+      );
+      const testedAt = new Date().toISOString();
+      try {
+        await webpush.sendNotification(
+          { endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } },
+          JSON.stringify({
+            title: "Footloose Alley test",
+            body: "Background notifications are connected on this device.",
+            href: "/settings",
+            tag: `push-test-${Date.now()}`,
+          }),
+          { TTL: 300, urgency: "high", topic: "footloose-test" }
+        );
+        const { error: updateError } = await supabase.from("push_subscriptions").update({
+          last_tested_at: testedAt,
+          last_delivery_status: "Accepted by push service",
+          last_delivery_error: null,
+          updated_at: testedAt,
+        }).eq("id", subscription.id);
+        if (updateError) throw updateError;
+        return jsonResponse(200, { ok: true, sent: true }, origin);
+      } catch (deliveryError) {
+        const statusCode = Number((deliveryError as { statusCode?: unknown }).statusCode ?? 0);
+        const message = statusCode === 404 || statusCode === 410
+          ? "The device subscription expired. Disable and enable notifications again."
+          : "The push service rejected the test notification.";
+        await supabase.from("push_subscriptions").update({
+          last_tested_at: testedAt,
+          last_delivery_status: "Rejected",
+          last_delivery_error: message,
+          updated_at: testedAt,
+        }).eq("id", subscription.id);
+        return jsonResponse(statusCode === 404 || statusCode === 410 ? 410 : 502, { error: message }, origin);
+      }
     }
 
     if (body.action === "update_preferences") {

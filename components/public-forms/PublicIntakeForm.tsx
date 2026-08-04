@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, type ReactNode, useState } from "react";
+import { FormEvent, type ReactNode, useEffect, useState } from "react";
 import {
   ArrowLeft,
   Camera,
@@ -42,6 +42,9 @@ type IntakeResponse = {
   error?: string;
 };
 
+type TrialDateOption = { date: string; spotsLeft: number; waiting: number };
+type TrialClassOption = { id: number; className: string; program: string; day: string; startTime: string; endTime: string; dates: TrialDateOption[] };
+
 function RequiredMark() {
   return <span className="text-rose-600"> *</span>;
 }
@@ -53,6 +56,23 @@ export default function PublicIntakeForm({ kind }: { kind: IntakeKind }) {
   const [errorMessage, setErrorMessage] = useState("");
   const [photoName, setPhotoName] = useState("");
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [enquiryType, setEnquiryType] = useState("General enquiry");
+  const [trialClasses, setTrialClasses] = useState<TrialClassOption[]>([]);
+  const [trialClassId, setTrialClassId] = useState("");
+  const [trialDate, setTrialDate] = useState("");
+  const [loadingTrials, setLoadingTrials] = useState(false);
+
+  useEffect(() => {
+    if (isStudent || enquiryType !== "Book a trial class" || trialClasses.length > 0) return;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoadingTrials(true);
+    fetch(`${supabaseUrl}/functions/v1/public-class-booking`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "classes" }) })
+      .then(async (response) => { const result = await response.json(); if (!response.ok || !result.ok) throw new Error(result.error || "Unable to load trial classes."); setTrialClasses(result.classes ?? []); })
+      .catch((error) => setErrorMessage(error instanceof Error ? error.message : "Unable to load trial classes."))
+      .finally(() => setLoadingTrials(false));
+  }, [enquiryType, isStudent, trialClasses.length]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -68,6 +88,11 @@ export default function PublicIntakeForm({ kind }: { kind: IntakeKind }) {
           ? "Please select at least one class batch."
           : "Please select at least one course."
       );
+      return;
+    }
+
+    if (!isStudent && enquiryType === "Book a trial class" && (!trialClassId || !trialDate)) {
+      setErrorMessage("Please choose a trial class and date.");
       return;
     }
 
@@ -225,6 +250,7 @@ export default function PublicIntakeForm({ kind }: { kind: IntakeKind }) {
       </div>
 
       <form className="space-y-6" onSubmit={handleSubmit}>
+        {!isStudent && <fieldset className="space-y-3"><legend className={labelClass}>How can we help?<RequiredMark /></legend><div className="grid gap-3 sm:grid-cols-2">{["General enquiry", "Book a trial class"].map((option) => <label key={option} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 font-semibold ${enquiryType === option ? "border-rose-500 bg-rose-50 text-rose-800" : "border-rose-200"}`}><input type="radio" name="Enquiry Type" value={option} checked={enquiryType === option} onChange={() => { setEnquiryType(option); setTrialClassId(""); setTrialDate(""); }} />{option}</label>)}</div></fieldset>}
         <div className="grid gap-5 sm:grid-cols-2">
           <label className={labelClass}>
             Full Name<RequiredMark />
@@ -407,6 +433,8 @@ export default function PublicIntakeForm({ kind }: { kind: IntakeKind }) {
             </div>
           )}
         </fieldset>
+
+        {!isStudent && enquiryType === "Book a trial class" && <div className="grid gap-5 rounded-2xl border border-purple-200 bg-purple-50/60 p-4 sm:grid-cols-2"><label className={labelClass}>Trial class<RequiredMark /><select className={inputClass} value={trialClassId} required disabled={loadingTrials} onChange={(event) => { const id = event.target.value; setTrialClassId(id); setTrialDate(""); const selected = trialClasses.find((item) => String(item.id) === id); if (selected) setSelectedOptions([selected.program]); }}><option value="">{loadingTrials ? "Loading classes…" : "Select class"}</option>{trialClasses.map((item) => <option key={item.id} value={item.id}>{item.className} — {item.day}, {item.startTime.slice(0,5)}</option>)}</select></label><label className={labelClass}>Trial date<RequiredMark /><select className={inputClass} value={trialDate} required disabled={!trialClassId} onChange={(event) => setTrialDate(event.target.value)}><option value="">Select date</option>{trialClasses.find((item) => String(item.id) === trialClassId)?.dates.map((option) => <option key={option.date} value={option.date}>{option.date} — {option.spotsLeft > 0 ? `${option.spotsLeft} places left` : `Waitlist (${option.waiting})`}</option>)}</select></label><input type="hidden" name="Trial Class ID" value={trialClassId}/><input type="hidden" name="Trial Date" value={trialDate}/></div>}
 
         <input
           type="hidden"

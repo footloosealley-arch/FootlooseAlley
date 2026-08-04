@@ -15,6 +15,8 @@ import {
   Bot,
   BellRing,
   Cake,
+  WalletCards,
+  ShieldCheck,
 } from "lucide-react";
 
 export interface NavigationItem {
@@ -65,6 +67,11 @@ export const navigation: NavigationItem[] = [
     icon: BadgeIndianRupee,
   },
   {
+    title: "Expenses",
+    href: "/expenses",
+    icon: WalletCards,
+  },
+  {
     title: "Memberships",
     href: "/memberships",
     icon: CreditCard,
@@ -88,6 +95,11 @@ export const navigation: NavigationItem[] = [
     title: "Reports",
     href: "/reports",
     icon: BarChart3,
+  },
+  {
+    title: "Audit Log",
+    href: "/audit-log",
+    icon: ShieldCheck,
   },
   {
     title: "AI Assistant",

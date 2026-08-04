@@ -52,6 +52,7 @@ export default function ClassList({ items, savingId, onEdit, onStatus, onDelete 
 
             <div className="mt-auto grid grid-cols-2 gap-2 pt-4 sm:flex sm:flex-wrap">
               <Button type="button" size="sm" variant="outline" onClick={() => onEdit(item)}><Pencil /> Edit</Button>
+              {item.public_booking_enabled && <span className="inline-flex items-center rounded-lg bg-purple-50 px-3 py-2 text-xs font-semibold text-purple-700">Trial booking enabled</span>}
               <Button type="button" size="sm" variant={item.status === "Active" ? "destructive" : "default"} disabled={savingId === item.id} onClick={() => onStatus(item)}>
                 {item.status === "Active" ? "Deactivate" : "Activate"}
               </Button>

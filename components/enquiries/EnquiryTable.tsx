@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   CalendarClock,
+  Ban,
   Check,
   MessageCircle,
   Pencil,
@@ -28,6 +29,8 @@ export type Enquiry = {
   assigned_to: string | null;
   last_contacted: string | null;
   trial_date: string | null;
+  trial_status?: string | null;
+  trial_notes?: string | null;
 
   converted_student_id?: number | null;
 };
@@ -41,6 +44,7 @@ interface EnquiryTableProps {
   onDelete: (enquiry: Enquiry) => void;
   onConvert: (enquiry: Enquiry) => void;
   onMarkFollowedUp: (enquiry: Enquiry) => void;
+  onCancelTrial: (enquiry: Enquiry) => void;
 }
 
 function getTodayString(): string {
@@ -210,6 +214,7 @@ export default function EnquiryTable({
   onDelete,
   onConvert,
   onMarkFollowedUp,
+  onCancelTrial,
 }: EnquiryTableProps) {
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -343,6 +348,7 @@ export default function EnquiryTable({
                             )}
                           </p>
                         )}
+                        {enquiry.trial_status && <p className={`mt-1 text-xs font-semibold ${enquiry.trial_status === "Cancelled" ? "text-red-600" : "text-emerald-600"}`}>{enquiry.trial_status}</p>}
                       </td>
 
                       <td className="p-4">
@@ -447,6 +453,7 @@ export default function EnquiryTable({
                                 : "Followed Up"}
                             </button>
                           )}
+                          {enquiry.trial_date && enquiry.trial_status !== "Cancelled" && <button type="button" onClick={() => onCancelTrial(enquiry)} title="Cancel trial booking" className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100"><Ban size={16}/>Cancel trial</button>}
 
                           <button
                             type="button"

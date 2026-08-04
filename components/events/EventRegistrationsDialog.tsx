@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { BadgeCheck, CheckCircle2, IndianRupee, LoaderCircle, MessageCircle, Pencil, Plus, ReceiptText, Search, Trash2, UserCheck, Users, X } from "lucide-react";
+import { BadgeCheck, Ban, CheckCircle2, IndianRupee, LoaderCircle, MessageCircle, Pencil, Plus, ReceiptText, RotateCcw, Search, Trash2, UserCheck, Users, X } from "lucide-react";
 import { toast } from "sonner";
 
 import SafeDeleteDialog from "@/components/common/SafeDeleteDialog";
@@ -22,6 +22,7 @@ import {
 } from "@/services/event-registrations.service";
 import type { StudioEvent } from "@/services/events.service";
 import EventPaymentReceiptDialog from "./EventPaymentReceiptDialog";
+import EventRefundDialog from "./EventRefundDialog";
 
 interface Props {
   open: boolean;
@@ -63,6 +64,7 @@ export default function EventRegistrationsDialog({ open, eventItem, onOpenChange
   const [editing, setEditing] = useState<EventRegistration | null>(null);
   const [deleting, setDeleting] = useState<EventRegistration | null>(null);
   const [receipt, setReceipt] = useState<EventRegistration | null>(null);
+  const [refunding, setRefunding] = useState<EventRegistration | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
@@ -95,7 +97,7 @@ export default function EventRegistrationsDialog({ open, eventItem, onOpenChange
 
   const active = items.filter((item) => item.attendance_status !== "Cancelled");
   const activePeople = active.reduce((sum, item) => sum + Number(item.group_size ?? 1), 0);
-  const collected = items.filter((item) => item.payment_status === "Paid").reduce((sum, item) => sum + Number(item.amount_paid), 0);
+  const collected = items.reduce((sum, item) => sum + Number(item.amount_paid) - Number(item.refunded_amount), 0);
 
   function startAdd() {
     setEditing(null);
@@ -171,6 +173,15 @@ export default function EventRegistrationsDialog({ open, eventItem, onOpenChange
     return `https://wa.me/${whatsappPhone(item.phone)}?text=${encodeURIComponent(text)}`;
   }
 
+  async function cancelRegistration(item: EventRegistration) {
+    const reason = window.prompt(`Why is ${item.participant_name}'s registration being cancelled?`);
+    if (!reason) return;
+    setSaving(true);
+    try { await eventRegistrationsService.cancel(item.id, reason); toast.success("Registration cancelled and capacity released."); await load(); onChanged(); }
+    catch (caught) { toast.error(caught instanceof Error ? caught.message : "Unable to cancel registration."); }
+    finally { setSaving(false); }
+  }
+
   return (
     <>
       <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
@@ -216,8 +227,10 @@ export default function EventRegistrationsDialog({ open, eventItem, onOpenChange
                   {item.group_size > 1 && <div className="mt-2 rounded-xl bg-blue-50 p-2.5 text-xs text-blue-900"><p className="font-semibold">Group booking · {item.group_size} participants</p><p className="mt-1">Additional: {item.additional_participant_names.join(", ")}</p></div>}
                   {item.payment_reference && <p className="mt-2 text-xs text-muted-foreground">UPI reference: {item.payment_reference}</p>}
                   {item.receipt_number && <p className="mt-2 text-xs font-semibold text-emerald-700">Receipt: {item.receipt_number}</p>}
+                  {item.refunded_amount > 0 && <p className="mt-2 text-xs font-semibold text-orange-700">Refunded: ₹{item.refunded_amount.toLocaleString("en-IN")}</p>}
+                  {item.cancellation_reason && <p className="mt-2 text-xs text-red-700">Cancelled: {item.cancellation_reason}</p>}
                   {item.notes && <p className="mt-3 text-sm text-muted-foreground">{item.notes}</p>}
-                  <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">{((item.payment_status === "Pending" && Boolean(item.payment_reference)) || (item.payment_status === "Paid" && !item.receipt_number)) && <Button type="button" size="sm" onClick={() => void confirmPayment(item)} disabled={saving}><BadgeCheck /> {item.payment_status === "Paid" ? "Issue receipt" : "Confirm payment"}</Button>}{item.payment_status === "Paid" && item.receipt_number && <><Button type="button" size="sm" variant="outline" onClick={() => setReceipt(item)}><ReceiptText /> Receipt</Button><Button size="sm" variant="outline" render={<a href={paymentConfirmationUrl(item)} target="_blank" rel="noreferrer" />}><MessageCircle /> Confirm via WhatsApp</Button></>}<Button size="sm" variant="outline" render={<a href={`https://wa.me/${whatsappPhone(item.phone)}`} target="_blank" rel="noreferrer" />}><MessageCircle /> Chat</Button><Button type="button" size="sm" variant="outline" onClick={() => startEdit(item)}><Pencil /> Edit</Button><Button type="button" size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setDeleting(item)}><Trash2 /> Delete</Button></div>
+                  <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">{((item.payment_status === "Pending" && Boolean(item.payment_reference)) || (item.payment_status === "Paid" && !item.receipt_number)) && <Button type="button" size="sm" onClick={() => void confirmPayment(item)} disabled={saving}><BadgeCheck /> {item.payment_status === "Paid" ? "Issue receipt" : "Confirm payment"}</Button>}{item.payment_status === "Paid" && item.refunded_amount < Number(item.amount_paid) && <Button type="button" size="sm" variant="outline" onClick={() => setRefunding(item)}><RotateCcw /> Refund</Button>}{item.attendance_status !== "Cancelled" && <Button type="button" size="sm" variant="outline" onClick={() => void cancelRegistration(item)} disabled={saving}><Ban /> Cancel booking</Button>}{item.payment_status === "Paid" && item.receipt_number && <><Button type="button" size="sm" variant="outline" onClick={() => setReceipt(item)}><ReceiptText /> Receipt</Button><Button size="sm" variant="outline" render={<a href={paymentConfirmationUrl(item)} target="_blank" rel="noreferrer" />}><MessageCircle /> Confirm via WhatsApp</Button></>}<Button size="sm" variant="outline" render={<a href={`https://wa.me/${whatsappPhone(item.phone)}`} target="_blank" rel="noreferrer" />}><MessageCircle /> Chat</Button><Button type="button" size="sm" variant="outline" onClick={() => startEdit(item)}><Pencil /> Edit</Button><Button type="button" size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setDeleting(item)}><Trash2 /> Delete</Button></div>
                 </article>
               ))}
             </div>
@@ -226,6 +239,7 @@ export default function EventRegistrationsDialog({ open, eventItem, onOpenChange
       </Dialog>
       <SafeDeleteDialog open={Boolean(deleting)} title={`Delete ${deleting?.participant_name ?? "participant"}?`} description="This permanently removes the event registration, payment and attendance record. Administrator access is required." deleting={saving} onOpenChange={(next) => !next && setDeleting(null)} onConfirm={() => void deleteParticipant()} />
       <EventPaymentReceiptDialog open={Boolean(receipt)} registration={receipt} eventItem={eventItem} onOpenChange={(next) => !next && setReceipt(null)} />
+      <EventRefundDialog open={Boolean(refunding)} registration={refunding} onOpenChange={(next) => !next && setRefunding(null)} onCompleted={() => { toast.success("Refund recorded."); void load(); onChanged(); }} />
     </>
   );
 }

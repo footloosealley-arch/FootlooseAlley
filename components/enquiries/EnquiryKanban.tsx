@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   CalendarClock,
+  Ban,
   Check,
   MessageCircle,
   Pencil,
@@ -22,6 +23,7 @@ interface EnquiryKanbanProps {
   onDelete: (enquiry: Enquiry) => void;
   onConvert: (enquiry: Enquiry) => void;
   onMarkFollowedUp: (enquiry: Enquiry) => void;
+  onCancelTrial: (enquiry: Enquiry) => void;
 }
 
 type PipelineKey =
@@ -207,6 +209,7 @@ function EnquiryCard({
   onDelete,
   onConvert,
   onMarkFollowedUp,
+  onCancelTrial,
 }: Omit<EnquiryKanbanProps, "loading" | "enquiries"> & {
   enquiry: Enquiry;
 }) {
@@ -267,6 +270,7 @@ function EnquiryCard({
             Trial {formatDate(enquiry.trial_date)}
           </span>
         )}
+        {enquiry.trial_status && <span className={`inline-flex rounded-full px-2 py-1 text-[11px] font-semibold ${enquiry.trial_status === "Cancelled" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>{enquiry.trial_status}</span>}
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2 border-t border-gray-100 pt-3">
@@ -303,6 +307,7 @@ function EnquiryCard({
             {isMarking ? "Saving" : "Done"}
           </button>
         )}
+        {enquiry.trial_date && enquiry.trial_status !== "Cancelled" && <button type="button" onClick={() => onCancelTrial(enquiry)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700 hover:bg-red-100"><Ban size={14}/>Cancel trial</button>}
 
         <button
           type="button"
@@ -354,6 +359,7 @@ export default function EnquiryKanban({
   onDelete,
   onConvert,
   onMarkFollowedUp,
+  onCancelTrial,
 }: EnquiryKanbanProps) {
   if (loading) {
     return (
@@ -407,6 +413,7 @@ export default function EnquiryKanban({
                     onDelete={onDelete}
                     onConvert={onConvert}
                     onMarkFollowedUp={onMarkFollowedUp}
+                    onCancelTrial={onCancelTrial}
                   />
                 ))}
 

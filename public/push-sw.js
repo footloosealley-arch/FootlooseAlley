@@ -29,12 +29,14 @@ self.addEventListener("push", (event) => {
       icon: "/footloose-alley-app-icon-192.png",
       badge: "/footloose-alley-app-icon-192.png",
       tag: payload.tag,
+      lang: "en-IN",
       renotify: true,
       requireInteraction: true,
       silent: false,
       timestamp: Date.now(),
       vibrate: [200, 100, 200],
       data: { href: payload.href },
+      actions: [{ action: "open", title: "Open Footloose Alley" }],
     })
   );
 });
