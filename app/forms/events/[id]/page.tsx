@@ -65,7 +65,7 @@ export default function PublicEventRegistrationPage({ params }: { params: Promis
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [registration, setRegistration] = useState<{ id: number; phone: string; paymentUrl: string | null; amount: number } | null>(null);
+  const [registration, setRegistration] = useState<{ id: number; phone: string; paymentUrl: string | null; amount: number; originalAmount: number; discountAmount: number; couponCode: string | null } | null>(null);
   const [reference, setReference] = useState("");
   const [referenceSaved, setReferenceSaved] = useState(false);
   const [couponCode, setCouponCode] = useState("");
@@ -107,13 +107,13 @@ export default function PublicEventRegistrationPage({ params }: { params: Promis
         name: String(form.get("name") ?? ""),
         phone: String(form.get("phone") ?? ""),
         email: String(form.get("email") ?? ""),
-        couponCode: couponResult?.code ?? couponCode,
+        couponCode: couponResult?.code ?? "",
         groupSize,
         additionalParticipantNames: additionalNames,
         website: String(form.get("website") ?? ""),
       });
       if (!result.registrationId || !result.phone) throw new Error("Registration was received, but the confirmation could not be displayed.");
-      setRegistration({ id: result.registrationId, phone: result.phone, paymentUrl: result.paymentUrl ?? null, amount: result.amount ?? 0 });
+      setRegistration({ id: result.registrationId, phone: result.phone, paymentUrl: result.paymentUrl ?? null, amount: result.amount ?? 0, originalAmount: result.originalAmount ?? result.amount ?? 0, discountAmount: result.discountAmount ?? 0, couponCode: result.couponCode ?? null });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to register.");
     } finally {
@@ -165,6 +165,7 @@ export default function PublicEventRegistrationPage({ params }: { params: Promis
             {registration.amount > 0 ? (
               <div className="mt-7 rounded-2xl border border-amber-200 bg-amber-50 p-5">
                 <h2 className="text-lg font-bold text-slate-950">Pay {money.format(registration.amount)} by UPI</h2>
+                {registration.couponCode && <p className="mt-2 rounded-xl bg-emerald-100 p-3 text-sm font-semibold text-emerald-900">Coupon {registration.couponCode} applied · You saved {money.format(registration.discountAmount)} on {money.format(registration.originalAmount)}</p>}
                 <p className="mt-1 text-sm leading-6 text-slate-600">Open any installed UPI app, complete payment, then enter the transaction reference below. Your payment remains pending until Footloose Alley verifies it.</p>
                 {registration.paymentUrl ? <a href={registration.paymentUrl} className={cn(buttonVariants({ size: "lg" }), "mt-4 w-full rounded-xl")}><IndianRupee className="size-4" /> Pay with any UPI app</a> : <p className="mt-4 text-sm font-medium text-red-700">Online payment is temporarily unavailable. Please contact the studio.</p>}
                 {!referenceSaved ? <form className="mt-5" onSubmit={saveReference}><label className={labelClass}>UPI transaction reference<input className={inputClass} value={reference} onChange={(event) => setReference(event.target.value)} required minLength={4} maxLength={100} placeholder="Enter reference after payment" /></label><Button type="submit" variant="outline" className="mt-3 w-full rounded-xl" disabled={submitting}>{submitting && <Loader2 className="animate-spin" />} Submit payment reference</Button></form> : <p className="mt-5 flex items-center gap-2 rounded-xl bg-emerald-100 p-3 text-sm font-semibold text-emerald-800"><CheckCircle2 className="size-5" /> Reference submitted for verification.</p>}
