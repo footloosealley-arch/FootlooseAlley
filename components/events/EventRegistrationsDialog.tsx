@@ -46,6 +46,8 @@ function toForm(item: EventRegistration): EventRegistrationInput {
     amount_paid: Number(item.amount_paid),
     attendance_status: item.attendance_status,
     notes: item.notes ?? "",
+    email: item.email ?? "",
+    payment_reference: item.payment_reference ?? "",
   };
 }
 
@@ -170,8 +172,10 @@ export default function EventRegistrationsDialog({ open, eventItem, onOpenChange
               <div className="flex items-center justify-between sm:col-span-2"><h3 className="font-semibold">{editing ? "Edit participant" : "Register participant"}</h3><Button type="button" size="icon-sm" variant="ghost" onClick={closeForm}><X /><span className="sr-only">Close form</span></Button></div>
               <div className="space-y-2"><Label htmlFor="event-participant-name">Name</Label><Input id="event-participant-name" required value={form.participant_name} onChange={(event) => setForm({ ...form, participant_name: event.target.value })} /></div>
               <div className="space-y-2"><Label htmlFor="event-participant-phone">Phone</Label><Input id="event-participant-phone" inputMode="tel" required value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} /></div>
+              <div className="space-y-2 sm:col-span-2"><Label htmlFor="event-participant-email">Email</Label><Input id="event-participant-email" type="email" value={form.email ?? ""} onChange={(event) => setForm({ ...form, email: event.target.value })} /></div>
               <div className="space-y-2"><Label>Payment status</Label><Select value={form.payment_status} onValueChange={(value) => value && setForm({ ...form, payment_status: value as EventPaymentStatus })}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent>{EVENT_PAYMENT_STATUSES.map((value) => <SelectItem value={value} key={value}>{value}</SelectItem>)}</SelectContent></Select></div>
               <div className="space-y-2"><Label htmlFor="event-amount-paid">Amount paid (₹)</Label><Input id="event-amount-paid" type="number" min={0} step="0.01" value={form.amount_paid} onChange={(event) => setForm({ ...form, amount_paid: Number(event.target.value) })} /></div>
+              <div className="space-y-2 sm:col-span-2"><Label htmlFor="event-payment-reference">UPI transaction reference</Label><Input id="event-payment-reference" value={form.payment_reference ?? ""} onChange={(event) => setForm({ ...form, payment_reference: event.target.value })} /></div>
               <div className="space-y-2 sm:col-span-2"><Label>Attendance</Label><Select value={form.attendance_status} onValueChange={(value) => value && setForm({ ...form, attendance_status: value as EventAttendanceStatus })}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent>{EVENT_ATTENDANCE_STATUSES.map((value) => <SelectItem value={value} key={value}>{value}</SelectItem>)}</SelectContent></Select></div>
               <div className="space-y-2 sm:col-span-2"><Label htmlFor="event-participant-notes">Notes</Label><Textarea id="event-participant-notes" value={form.notes ?? ""} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></div>
               {error && <p className="text-sm text-destructive sm:col-span-2" role="alert">{error}</p>}
@@ -186,7 +190,8 @@ export default function EventRegistrationsDialog({ open, eventItem, onOpenChange
               {filtered.map((item) => (
                 <article key={item.id} className="rounded-2xl border p-4">
                   <div className="flex items-start justify-between gap-3"><div><h3 className="font-semibold">{item.participant_name}</h3><p className="mt-1 text-sm text-muted-foreground">{item.phone}</p></div><span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold">{item.attendance_status}</span></div>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">{item.payment_status}</span><span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">₹{Number(item.amount_paid).toLocaleString("en-IN")}</span></div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">{item.payment_status}</span><span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">₹{Number(item.amount_paid).toLocaleString("en-IN")}</span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700">{item.registration_source}</span></div>
+                  {item.payment_reference && <p className="mt-2 text-xs text-muted-foreground">UPI reference: {item.payment_reference}</p>}
                   {item.notes && <p className="mt-3 text-sm text-muted-foreground">{item.notes}</p>}
                   <div className="mt-4 grid grid-cols-3 gap-2"><Button size="sm" variant="outline" render={<a href={`https://wa.me/${whatsappPhone(item.phone)}`} target="_blank" rel="noreferrer" />}><MessageCircle /> Chat</Button><Button type="button" size="sm" variant="outline" onClick={() => startEdit(item)}><Pencil /> Edit</Button><Button type="button" size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setDeleting(item)}><Trash2 /> Delete</Button></div>
                 </article>
