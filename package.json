@@ -1,6 +1,6 @@
 {
   "name": "footloose-alley-studio-manager-v2",
-  "version": "5.4.0",
+  "version": "5.5.0",
   "private": true,
   "engines": {
     "node": ">=22"

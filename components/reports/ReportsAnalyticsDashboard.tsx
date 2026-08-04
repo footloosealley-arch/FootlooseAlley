@@ -217,6 +217,9 @@ export default function ReportsAnalyticsDashboard() {
       ["Event Refunds", data.summary.eventRefunds],
       ["Event Expenses", data.summary.eventExpenses],
       ["Event Profit", data.summary.eventProfit],
+      ["General Studio Expenses", data.summary.studioExpenses],
+      ["Instructor Payouts", data.summary.instructorPayouts],
+      ["Operating Profit", data.summary.operatingProfit],
       ["Payment Count", data.summary.paymentCount],
       ["Average Payment", data.summary.averagePayment],
       ["Attendance", data.summary.attendance],
@@ -259,6 +262,10 @@ export default function ReportsAnalyticsDashboard() {
       ["Trial Outcomes"],
       ["Outcome", "Count"],
       ...data.trialOutcomes.map((item) => [item.name, item.value]),
+      [],
+      ["General Studio Expenses by Category"],
+      ["Category", "Amount"],
+      ...data.studioExpenseCategories.map((item) => [item.name, item.value]),
     ];
 
     const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
@@ -284,7 +291,7 @@ export default function ReportsAnalyticsDashboard() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Reports & Analytics</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Revenue, attendance, memberships, enquiries, trials, and fee performance.
+            Separate membership and event income, refunds, costs, instructor payouts, and operating profit.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 print:hidden">
@@ -384,6 +391,9 @@ export default function ReportsAnalyticsDashboard() {
             <SummaryCard title="Event Refunds" value={formatCurrency(data.summary.eventRefunds)} subtitle="Full and partial event refunds" icon={<IndianRupee className="h-5 w-5" />} tone="bg-rose-100 text-rose-700" />
             <SummaryCard title="Event Expenses" value={formatCurrency(data.summary.eventExpenses)} subtitle="Costs recorded against events" icon={<IndianRupee className="h-5 w-5" />} tone="bg-orange-100 text-orange-700" />
             <SummaryCard title="Event Profit" value={formatCurrency(data.summary.eventProfit)} subtitle="Event revenue minus refunds and costs" icon={<TrendingUp className="h-5 w-5" />} tone={data.summary.eventProfit >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"} />
+            <SummaryCard title="General Studio Expenses" value={formatCurrency(data.summary.studioExpenses)} subtitle="Rent, utilities and operating costs" icon={<IndianRupee className="h-5 w-5" />} tone="bg-amber-100 text-amber-700" />
+            <SummaryCard title="Instructor Payouts" value={formatCurrency(data.summary.instructorPayouts)} subtitle="Instructor dues marked as paid" icon={<IndianRupee className="h-5 w-5" />} tone="bg-cyan-100 text-cyan-700" />
+            <SummaryCard title="Operating Profit" value={formatCurrency(data.summary.operatingProfit)} subtitle="Net collections minus all recorded costs" icon={<TrendingUp className="h-5 w-5" />} tone={data.summary.operatingProfit >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"} />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
@@ -517,6 +527,13 @@ export default function ReportsAnalyticsDashboard() {
           </div>
 
           <div className="grid gap-6 xl:grid-cols-3">
+            <div className="rounded-2xl border bg-background p-5 shadow-sm">
+              <h2 className="font-semibold">General Expense Categories</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Studio operating costs in the selected period</p>
+              <div className="mt-6">
+                <BreakdownList data={data.studioExpenseCategories} formatValue={formatCurrency} />
+              </div>
+            </div>
             <div className="rounded-2xl border bg-background p-5 shadow-sm">
               <h2 className="font-semibold">Enquiry Pipeline</h2>
               <p className="mt-1 text-sm text-muted-foreground">Enquiries created in the selected period</p>

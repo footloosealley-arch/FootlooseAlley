@@ -29,6 +29,9 @@ export interface ReportSummary {
   eventRefunds: number;
   eventExpenses: number;
   eventProfit: number;
+  studioExpenses: number;
+  instructorPayouts: number;
+  operatingProfit: number;
   grossRevenue: number;
   paymentCount: number;
   averagePayment: number;
@@ -56,6 +59,7 @@ export interface ReportsData {
   trialOutcomes: ReportBreakdownPoint[];
   feeDueStatus: ReportBreakdownPoint[];
   topPrograms: ReportBreakdownPoint[];
+  studioExpenseCategories: ReportBreakdownPoint[];
 }
 
 interface PaymentRow {
@@ -69,6 +73,8 @@ interface PaymentRow {
 interface EventPaymentRow { id: number; amount_paid: number | string | null; payment_status: string; payment_verified_at: string | null; }
 interface EventRefundRow { id: number; amount: number | string; created_at: string; reason: string; }
 interface EventExpenseRow { id: number; amount: number | string; expense_date: string; category: string; }
+interface StudioExpenseRow { id: number; amount: number | string; expense_date: string; category: string; }
+interface InstructorPaymentRow { id: number; amount: number | string; status: string; paid_at: string | null; }
 
 interface AttendanceRow {
   id: number;
@@ -146,7 +152,7 @@ function toBreakdown(map: Map<string, number>): ReportBreakdownPoint[] {
 
 class ReportsService {
   async getReportsData(range: ReportDateRange): Promise<ReportsData> {
-    const [paymentsResult, eventPaymentsResult, eventRefundsResult, eventExpensesResult, attendanceResult, studentsResult, enquiriesResult, feeDuesResult] =
+    const [paymentsResult, eventPaymentsResult, eventRefundsResult, eventExpensesResult, studioExpensesResult, instructorPaymentsResult, attendanceResult, studentsResult, enquiriesResult, feeDuesResult] =
       await Promise.all([
         supabase
           .from("Payments")
@@ -154,6 +160,8 @@ class ReportsService {
         supabase.from("Event_Registrations").select("id,amount_paid,payment_status,payment_verified_at"),
         supabase.from("Event_Refunds").select("id,amount,created_at,reason"),
         supabase.from("Event_Expenses").select("id,amount,expense_date,category"),
+        supabase.from("Studio_Expenses").select("id,amount,expense_date,category"),
+        supabase.from("Instructor_Payments").select("id,amount,status,paid_at"),
         supabase.from("Attendance").select("id,date,status"),
         supabase
           .from("Students")
@@ -172,6 +180,8 @@ class ReportsService {
     if (eventPaymentsResult.error) throw eventPaymentsResult.error;
     if (eventRefundsResult.error) throw eventRefundsResult.error;
     if (eventExpensesResult.error) throw eventExpensesResult.error;
+    if (studioExpensesResult.error) throw studioExpensesResult.error;
+    if (instructorPaymentsResult.error) throw instructorPaymentsResult.error;
     if (attendanceResult.error) throw attendanceResult.error;
     if (studentsResult.error) throw studentsResult.error;
     if (enquiriesResult.error) throw enquiriesResult.error;
@@ -181,6 +191,8 @@ class ReportsService {
     const eventPayments = (eventPaymentsResult.data ?? []) as EventPaymentRow[];
     const eventRefunds = (eventRefundsResult.data ?? []) as EventRefundRow[];
     const eventExpenses = (eventExpensesResult.data ?? []) as EventExpenseRow[];
+    const studioExpenses = (studioExpensesResult.data ?? []) as StudioExpenseRow[];
+    const instructorPayments = (instructorPaymentsResult.data ?? []) as InstructorPaymentRow[];
     const attendance = (attendanceResult.data ?? []) as AttendanceRow[];
     const students = (studentsResult.data ?? []) as StudentRow[];
     const enquiries = (enquiriesResult.data ?? []) as EnquiryRow[];
@@ -197,6 +209,10 @@ class ReportsService {
     const rangeEventPayments = eventPayments.filter((payment) => payment.payment_status === "Paid" && dateInRange(payment.payment_verified_at?.slice(0, 10)));
     const rangeEventRefunds = eventRefunds.filter((refund) => dateInRange(refund.created_at.slice(0, 10)));
     const rangeEventExpenses = eventExpenses.filter((expense) => dateInRange(expense.expense_date));
+    const rangeStudioExpenses = studioExpenses.filter((expense) => dateInRange(expense.expense_date));
+    const rangeInstructorPayouts = instructorPayments.filter(
+      (payment) => payment.status === "Paid" && dateInRange(payment.paid_at?.slice(0, 10))
+    );
     const rangeAttendance = attendance.filter(
       (record) => dateInRange(record.date) && isPresent(record.status)
     );
@@ -213,6 +229,8 @@ class ReportsService {
     const membershipRefunds = rangeMembershipRefunds.reduce((total, payment) => total + Number(payment.amount ?? 0), 0);
     const eventRefundAmount = rangeEventRefunds.reduce((total, refund) => total + Number(refund.amount), 0);
     const eventExpenseAmount = rangeEventExpenses.reduce((total, expense) => total + Number(expense.amount), 0);
+    const studioExpenseAmount = rangeStudioExpenses.reduce((total, expense) => total + Number(expense.amount), 0);
+    const instructorPayoutAmount = rangeInstructorPayouts.reduce((total, payment) => total + Number(payment.amount), 0);
     const grossRevenue = membershipRevenue + eventRevenue;
     const revenue = grossRevenue - membershipRefunds - eventRefundAmount;
     const convertedEnquiries = rangeEnquiries.filter((enquiry) =>
@@ -308,6 +326,11 @@ class ReportsService {
       increment(topPrograms, student.Program?.trim() || "Not assigned")
     );
 
+    const studioExpenseCategories = new Map<string, number>();
+    rangeStudioExpenses.forEach((expense) =>
+      increment(studioExpenseCategories, expense.category?.trim() || "Other", Number(expense.amount))
+    );
+
     const summary: ReportSummary = {
       revenue: Number(revenue.toFixed(2)),
       membershipRevenue: Number(membershipRevenue.toFixed(2)),
@@ -316,6 +339,9 @@ class ReportsService {
       eventRefunds: Number(eventRefundAmount.toFixed(2)),
       eventExpenses: Number(eventExpenseAmount.toFixed(2)),
       eventProfit: Number((eventRevenue - eventRefundAmount - eventExpenseAmount).toFixed(2)),
+      studioExpenses: Number(studioExpenseAmount.toFixed(2)),
+      instructorPayouts: Number(instructorPayoutAmount.toFixed(2)),
+      operatingProfit: Number((revenue - eventExpenseAmount - studioExpenseAmount - instructorPayoutAmount).toFixed(2)),
       grossRevenue: Number(grossRevenue.toFixed(2)),
       paymentCount: rangePayments.length + rangeEventPayments.length,
       averagePayment:
@@ -356,6 +382,7 @@ class ReportsService {
       trialOutcomes: toBreakdown(trialOutcomes),
       feeDueStatus: toBreakdown(feeDueStatus),
       topPrograms: toBreakdown(topPrograms).slice(0, 8),
+      studioExpenseCategories: toBreakdown(studioExpenseCategories),
     };
   }
 }

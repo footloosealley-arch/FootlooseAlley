@@ -15,6 +15,7 @@ import {
   Bot,
   BellRing,
   Cake,
+  WalletCards,
 } from "lucide-react";
 
 export interface NavigationItem {
@@ -63,6 +64,11 @@ export const navigation: NavigationItem[] = [
     title: "Payments",
     href: "/payments",
     icon: BadgeIndianRupee,
+  },
+  {
+    title: "Expenses",
+    href: "/expenses",
+    icon: WalletCards,
   },
   {
     title: "Memberships",
