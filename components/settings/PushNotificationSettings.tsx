@@ -9,6 +9,7 @@ import {
   RefreshCw,
   ShieldCheck,
   SlidersHorizontal,
+  Send,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -134,6 +135,20 @@ export default function PushNotificationSettings() {
     }
   }
 
+  async function sendTest() {
+    setSaving(true);
+    setError(null);
+    try {
+      await pushNotificationsService.sendTest();
+      toast.success("Test notification sent to this device.");
+      await loadStatus();
+    } catch (testError) {
+      setError(testError instanceof Error ? testError.message : "Unable to send a test notification.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const unsupported = status?.supported === false;
   const needsConfiguration = status?.supported && status.configured === false;
   const permissionDenied = status?.permission === "denied";
@@ -216,6 +231,10 @@ export default function PushNotificationSettings() {
               {saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <BellOff className="h-4 w-4" />}
               Disable notifications
             </Button>
+            <Button onClick={() => void sendTest()} disabled={saving}>
+              {saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Send test notification
+            </Button>
           </>
         ) : (
           <>
@@ -232,6 +251,19 @@ export default function PushNotificationSettings() {
           </>
         )}
       </div>
+
+      {status?.subscribed && (
+        <div className="mt-4 rounded-xl border bg-muted/30 p-3 text-sm">
+          <p className="font-medium">This device subscription</p>
+          <p className="mt-1 text-muted-foreground">
+            Last checked: {status.diagnostics?.lastSeenAt ? new Date(status.diagnostics.lastSeenAt).toLocaleString() : "Not recorded"}
+            {status.diagnostics?.lastTestedAt ? ` · Last tested: ${new Date(status.diagnostics.lastTestedAt).toLocaleString()}` : ""}
+          </p>
+          {status.diagnostics?.lastDeliveryStatus && <p className="mt-1 text-muted-foreground">Delivery service response: {status.diagnostics.lastDeliveryStatus}</p>}
+          {status.diagnostics?.lastDeliveryError && <p className="mt-1 text-red-600">{status.diagnostics.lastDeliveryError}</p>}
+          <p className="mt-2 text-xs text-muted-foreground">On Vivo, also allow Chrome notifications, enable background activity, and set battery usage to Unrestricted.</p>
+        </div>
+      )}
 
       <div className="mt-6 border-t pt-5">
         <div className="flex items-start gap-3">

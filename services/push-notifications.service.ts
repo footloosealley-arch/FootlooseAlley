@@ -14,6 +14,15 @@ interface PushStatusResponse {
   subscribed?: boolean;
   preferences?: PushNotificationPreferences;
   error?: string;
+  diagnostics?: PushNotificationDiagnostics;
+  sent?: boolean;
+}
+
+export interface PushNotificationDiagnostics {
+  lastSeenAt: string | null;
+  lastTestedAt: string | null;
+  lastDeliveryStatus: string | null;
+  lastDeliveryError: string | null;
 }
 
 export interface PushNotificationPreferences {
@@ -32,6 +41,7 @@ export interface PushNotificationStatus {
   subscribed: boolean;
   permission: NotificationPermission | "unsupported";
   preferences: PushNotificationPreferences;
+  diagnostics: PushNotificationDiagnostics | null;
 }
 
 export const defaultPushNotificationPreferences: PushNotificationPreferences = {
@@ -169,6 +179,7 @@ export const pushNotificationsService = {
         subscribed: false,
         permission: "unsupported",
         preferences: defaultPushNotificationPreferences,
+        diagnostics: null,
       };
     }
 
@@ -176,7 +187,10 @@ export const pushNotificationsService = {
     const subscription = isPushWorker(registration)
       ? await registration?.pushManager.getSubscription()
       : null;
-    const response = await callSubscriptionFunction({ action: "status" });
+    const response = await callSubscriptionFunction({
+      action: "status",
+      endpoint: subscription?.endpoint,
+    });
 
     return {
       supported: true,
@@ -184,6 +198,7 @@ export const pushNotificationsService = {
       subscribed: Boolean(subscription) && response.subscribed === true,
       permission: Notification.permission,
       preferences: toPreferences(response.preferences),
+      diagnostics: response.diagnostics ?? null,
     };
   },
 
@@ -251,5 +266,19 @@ export const pushNotificationsService = {
     });
 
     return toPreferences(response.preferences);
+  },
+
+  async sendTest(): Promise<void> {
+    if (!isSupported() || Notification.permission !== "granted") {
+      throw new Error("Enable notifications on this device before sending a test.");
+    }
+    const registration = await navigator.serviceWorker.getRegistration("/");
+    const subscription = await registration?.pushManager.getSubscription();
+    if (!subscription) throw new Error("This device does not have an active push subscription.");
+    const response = await callSubscriptionFunction({
+      action: "test",
+      endpoint: subscription.endpoint,
+    });
+    if (response.sent !== true) throw new Error(response.error || "The test notification was not accepted.");
   },
 };
