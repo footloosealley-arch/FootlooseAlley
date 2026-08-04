@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
-import { CalendarDays, CheckCircle2, ClipboardCheck, Clock3, Copy, IndianRupee, Link2, MapPin, MessageCircle, Pencil, Plus, RefreshCw, Search, Tag, Trash2, Users } from "lucide-react";
+import { BarChart3, CalendarDays, CheckCircle2, ClipboardCheck, Clock3, Copy, IndianRupee, Link2, MapPin, MessageCircle, Pencil, Plus, RefreshCw, Search, Tag, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import BrandLogo from "@/components/branding/BrandLogo";
@@ -22,6 +22,7 @@ import EventFormDialog from "./EventFormDialog";
 import EventCouponsDialog from "./EventCouponsDialog";
 import EventCheckInDialog from "./EventCheckInDialog";
 import EventRegistrationsDialog from "./EventRegistrationsDialog";
+import EventAnalyticsDialog from "./EventAnalyticsDialog";
 
 const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 });
 const friendlyDate = (date: string) => new Intl.DateTimeFormat("en-IN", { dateStyle: "long" }).format(new Date(`${date}T00:00:00`));
@@ -55,6 +56,7 @@ export default function EventsManagement() {
   const [registrationsEvent, setRegistrationsEvent] = useState<StudioEvent | null>(null);
   const [couponsEvent, setCouponsEvent] = useState<StudioEvent | null>(null);
   const [checkInEvent, setCheckInEvent] = useState<StudioEvent | null>(null);
+  const [analyticsEvent, setAnalyticsEvent] = useState<StudioEvent | null>(null);
   const [summaries, setSummaries] = useState<EventRegistrationSummary[]>([]);
   const [savingId, setSavingId] = useState<number | null>(null);
 
@@ -202,6 +204,7 @@ export default function EventsManagement() {
                   {item.public_registration_enabled && Number(item.fee) > 0 && <Button type="button" size="sm" variant="outline" onClick={() => setCouponsEvent(item)}><Tag /> Coupons</Button>}
                   <Button type="button" size="sm" variant="outline" onClick={() => setRegistrationsEvent(item)}><Users /> Participants</Button>
                   {item.status !== "Draft" && <Button type="button" size="sm" variant="outline" onClick={() => setCheckInEvent(item)}><ClipboardCheck /> Check-in</Button>}
+                  <Button type="button" size="sm" variant="outline" onClick={() => setAnalyticsEvent(item)}><BarChart3 /> Analytics</Button>
                   <Button type="button" size="sm" variant="outline" disabled={savingId === item.id} onClick={() => void duplicateEvent(item)}><Copy /> Duplicate</Button>
                   {item.status === "Draft" && <Button type="button" size="sm" disabled={savingId === item.id} onClick={() => void changeStatus(item, "Upcoming")}>Publish</Button>}
                   {item.status === "Upcoming" && <><Button type="button" size="sm" disabled={savingId === item.id} onClick={() => void changeStatus(item, "Completed")}>Complete</Button><Button type="button" size="sm" variant="destructive" disabled={savingId === item.id} onClick={() => void changeStatus(item, "Cancelled")}>Cancel</Button></>}
@@ -219,6 +222,7 @@ export default function EventsManagement() {
       <EventCouponsDialog open={Boolean(couponsEvent)} eventItem={couponsEvent} onOpenChange={(next) => !next && setCouponsEvent(null)} />
       <EventCheckInDialog open={Boolean(checkInEvent)} eventItem={checkInEvent} onOpenChange={(next) => !next && setCheckInEvent(null)} />
       <EventRegistrationsDialog open={Boolean(registrationsEvent)} eventItem={registrationsEvent} onOpenChange={(next) => !next && setRegistrationsEvent(null)} onChanged={() => void load()} />
+      <EventAnalyticsDialog open={Boolean(analyticsEvent)} eventItem={analyticsEvent} onOpenChange={(next) => !next && setAnalyticsEvent(null)} onChanged={() => void load()} />
       <SafeDeleteDialog open={Boolean(deleting)} title={`Delete ${deleting?.title ?? "event"}?`} description="Only draft or cancelled events can be permanently deleted. The event photo will also be removed." deleting={savingId === deleting?.id} onOpenChange={(next) => !next && setDeleting(null)} onConfirm={() => void deleteEvent()} />
     </div>
   );
