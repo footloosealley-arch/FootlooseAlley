@@ -210,7 +210,11 @@ export default function ReportsAnalyticsDashboard() {
       ["End Date", data.range.endDate],
       [],
       ["Summary Metric", "Value"],
-      ["Revenue", data.summary.revenue],
+      ["Net Revenue", data.summary.revenue],
+      ["Membership Revenue", data.summary.membershipRevenue],
+      ["Event Revenue", data.summary.eventRevenue],
+      ["Membership Refunds", data.summary.membershipRefunds],
+      ["Event Refunds", data.summary.eventRefunds],
       ["Payment Count", data.summary.paymentCount],
       ["Average Payment", data.summary.averagePayment],
       ["Attendance", data.summary.attendance],
@@ -227,10 +231,13 @@ export default function ReportsAnalyticsDashboard() {
       ["Renewals Due", data.summary.renewalsDue],
       [],
       ["Daily Trend"],
-      ["Date", "Revenue", "Attendance", "Enquiries"],
+      ["Date", "Net Revenue", "Membership Revenue", "Event Revenue", "Refunds", "Attendance", "Enquiries"],
       ...data.trend.map((item) => [
         item.date,
         item.revenue,
+        item.membershipRevenue,
+        item.eventRevenue,
+        item.refunds,
         item.attendance,
         item.enquiries,
       ]),
@@ -361,14 +368,21 @@ export default function ReportsAnalyticsDashboard() {
             </p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <SummaryCard
-              title="Revenue"
+              title="Net Revenue"
               value={formatCurrency(data.summary.revenue)}
-              subtitle={`${data.summary.paymentCount} payments · ${formatCurrency(data.summary.averagePayment)} average`}
+              subtitle={`${formatCurrency(data.summary.grossRevenue)} gross minus refunds`}
               icon={<IndianRupee className="h-5 w-5" />}
               tone="bg-emerald-100 text-emerald-700"
             />
+            <SummaryCard title="Membership Revenue" value={formatCurrency(data.summary.membershipRevenue)} subtitle="Student membership payments" icon={<IndianRupee className="h-5 w-5" />} tone="bg-blue-100 text-blue-700" />
+            <SummaryCard title="Event Revenue" value={formatCurrency(data.summary.eventRevenue)} subtitle="Verified event payments" icon={<IndianRupee className="h-5 w-5" />} tone="bg-violet-100 text-violet-700" />
+            <SummaryCard title="Membership Refunds" value={formatCurrency(data.summary.membershipRefunds)} subtitle="Refunded membership payments" icon={<IndianRupee className="h-5 w-5" />} tone="bg-orange-100 text-orange-700" />
+            <SummaryCard title="Event Refunds" value={formatCurrency(data.summary.eventRefunds)} subtitle="Full and partial event refunds" icon={<IndianRupee className="h-5 w-5" />} tone="bg-rose-100 text-rose-700" />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
             <SummaryCard
               title="Attendance"
               value={data.summary.attendance}
@@ -424,7 +438,7 @@ export default function ReportsAnalyticsDashboard() {
           </div>
 
           <div className="grid gap-6 xl:grid-cols-2">
-            <ChartCard title="Revenue Trend" description="Completed payment revenue by day">
+            <ChartCard title="Revenue Trend" description="Membership and event revenue remain separate; refunds reduce net revenue">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={compactTrend}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -433,12 +447,15 @@ export default function ReportsAnalyticsDashboard() {
                   <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                   <Line
                     type="monotone"
-                    dataKey="revenue"
-                    stroke="#10b981"
+                    dataKey="membershipRevenue"
+                    name="Membership revenue"
+                    stroke="#0ea5e9"
                     strokeWidth={3}
                     dot={false}
                     activeDot={{ r: 5 }}
                   />
+                  <Line type="monotone" dataKey="eventRevenue" name="Event revenue" stroke="#7c3aed" strokeWidth={3} dot={false} />
+                  <Line type="monotone" dataKey="refunds" name="Refunds" stroke="#ef4444" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </ChartCard>
