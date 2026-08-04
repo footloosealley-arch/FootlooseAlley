@@ -46,6 +46,23 @@ function upiUrl(upiId: string, payeeName: string, amount: number, title: string,
   return `upi://pay?${params.toString()}`;
 }
 
+async function resolveCoupon(supabase: ReturnType<typeof createClient>, eventId: number, rawCode: unknown, fee: number) {
+  const code = cleanText(rawCode, 24).toUpperCase();
+  if (!code) return { code: null, percent: 0, discount: 0, amount: fee };
+  const { data: coupon, error } = await supabase.from("Event_Coupons").select("code,discount_percent,expires_at,usage_limit,is_active").eq("event_id", eventId).eq("code", code).maybeSingle();
+  if (error) throw error;
+  if (!coupon || !coupon.is_active) throw new Error("INVALID_COUPON");
+  if (coupon.expires_at && new Date(coupon.expires_at).getTime() <= Date.now()) throw new Error("EXPIRED_COUPON");
+  if (coupon.usage_limit) {
+    const { count, error: usageError } = await supabase.from("Event_Registrations").select("id", { count: "exact", head: true }).eq("event_id", eventId).eq("coupon_code", code).neq("attendance_status", "Cancelled");
+    if (usageError) throw usageError;
+    if ((count ?? 0) >= coupon.usage_limit) throw new Error("USED_COUPON");
+  }
+  const percent = Number(coupon.discount_percent);
+  const discount = Number(Math.min(fee, fee * percent / 100).toFixed(2));
+  return { code, percent, discount, amount: Number((fee - discount).toFixed(2)) };
+}
+
 Deno.serve(async (request) => {
   const origin = request.headers.get("origin");
   if (request.method === "OPTIONS") {
@@ -95,6 +112,18 @@ Deno.serve(async (request) => {
       }, origin);
     }
 
+    if (body.action === "coupon") {
+      try {
+        const coupon = await resolveCoupon(supabase, eventId, body.couponCode, Number(event.fee));
+        if (!coupon.code) return response(400, { error: "Enter a coupon code." }, origin);
+        return response(200, { ok: true, couponCode: coupon.code, discountPercent: coupon.percent, discountAmount: coupon.discount, amount: coupon.amount }, origin);
+      } catch (couponError) {
+        const code = couponError instanceof Error ? couponError.message : "";
+        const message = code === "EXPIRED_COUPON" ? "This coupon has expired." : code === "USED_COUPON" ? "This coupon has reached its usage limit." : "This coupon code is invalid.";
+        return response(400, { error: message }, origin);
+      }
+    }
+
     if (body.action === "reference") {
       const registrationId = positiveId(body.registrationId);
       const phone = cleanText(body.phone, 30).replace(/\D/g, "");
@@ -121,12 +150,21 @@ Deno.serve(async (request) => {
     if (phone.length < 7 || phone.length > 15) return response(400, { error: "Enter a valid phone number." }, origin);
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return response(400, { error: "Enter a valid email address." }, origin);
 
+    let coupon;
+    try { coupon = await resolveCoupon(supabase, eventId, body.couponCode, Number(event.fee)); }
+    catch (couponError) {
+      const code = couponError instanceof Error ? couponError.message : "";
+      const message = code === "EXPIRED_COUPON" ? "This coupon has expired." : code === "USED_COUPON" ? "This coupon has reached its usage limit." : "This coupon code is invalid.";
+      return response(400, { error: message }, origin);
+    }
+
     const { data: registration, error: registrationError } = await supabase
       .from("Event_Registrations")
       .insert({
         event_id: eventId, participant_name: name, phone, email,
-        payment_status: Number(event.fee) === 0 ? "Waived" : "Pending",
+        payment_status: coupon.amount === 0 ? "Waived" : "Pending",
         amount_paid: 0, attendance_status: "Registered", registration_source: "Public Link",
+        coupon_code: coupon.code, original_amount: Number(event.fee), discount_amount: coupon.discount, amount_due: coupon.amount,
       })
       .select("id").single();
     if (registrationError) {
@@ -134,10 +172,10 @@ Deno.serve(async (request) => {
       throw registrationError;
     }
 
-    const paymentUrl = Number(event.fee) > 0 && event.payment_upi_id && event.payment_payee_name
-      ? upiUrl(event.payment_upi_id, event.payment_payee_name, Number(event.fee), event.title, registration.id)
+    const paymentUrl = coupon.amount > 0 && event.payment_upi_id && event.payment_payee_name
+      ? upiUrl(event.payment_upi_id, event.payment_payee_name, coupon.amount, event.title, registration.id)
       : null;
-    return response(201, { ok: true, registrationId: registration.id, phone, paymentUrl, amount: Number(event.fee) }, origin);
+    return response(201, { ok: true, registrationId: registration.id, phone, paymentUrl, amount: coupon.amount, originalAmount: Number(event.fee), discountAmount: coupon.discount, couponCode: coupon.code }, origin);
   } catch (error) {
     console.error("public-event-registration failed", error);
     return response(500, { error: "Unable to process the registration. Please try again." }, origin);
