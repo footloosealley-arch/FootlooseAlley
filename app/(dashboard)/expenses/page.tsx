@@ -20,6 +20,7 @@ export default function ExpensesPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<StudioExpense | null>(null);
+  const [deletingReconciliation, setDeletingReconciliation] = useState<Reconciliation | null>(null);
   const [expense, setExpense] = useState({ date: today(), category: "Rent", description: "", amount: "", method: "UPI", reference: "", notes: "" });
   const [reconcile, setReconcile] = useState({ date: today(), opening: "", counted: "", notes: "" });
 
@@ -85,6 +86,21 @@ export default function ExpensesPage() {
     }
   }
 
+  async function deleteReconciliation() {
+    if (!deletingReconciliation) return;
+    setSaving(true);
+    try {
+      await financeOperationsService.deleteReconciliation(deletingReconciliation.id);
+      toast.success("Cash reconciliation deleted.");
+      setDeletingReconciliation(null);
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to delete reconciliation.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const currentMonth = today().slice(0, 7);
   const monthExpenses = useMemo(() => expenses.filter((item) => item.expense_date.startsWith(currentMonth)).reduce((sum, item) => sum + item.amount, 0), [expenses, currentMonth]);
   const latest = reconciliations[0];
@@ -122,7 +138,7 @@ export default function ExpensesPage() {
             <label><Label>Notes</Label><Input className="mt-1" value={reconcile.notes} onChange={(event) => setReconcile({ ...reconcile, notes: event.target.value })} /></label>
             <Button type="submit" className="sm:col-span-2" disabled={saving}><Calculator />Reconcile cash</Button>
           </form>
-          <div className="mt-4 space-y-2">{reconciliations.slice(0, 5).map((item) => <div key={item.id} className="rounded-xl border p-3 text-sm"><strong>{item.reconciliation_date}</strong><p className="text-muted-foreground">Expected {money.format(item.expected_cash)} · Counted {money.format(item.counted_cash)} · Variance <span className={item.variance === 0 ? "text-emerald-600" : "text-red-600"}>{money.format(item.variance)}</span></p></div>)}</div>
+          <div className="mt-4 space-y-2">{reconciliations.slice(0, 5).map((item) => <div key={item.id} className="flex items-center justify-between gap-3 rounded-xl border p-3 text-sm"><div><strong>{item.reconciliation_date}</strong><p className="text-muted-foreground">Expected {money.format(item.expected_cash)} · Counted {money.format(item.counted_cash)} · Variance <span className={item.variance === 0 ? "text-emerald-600" : "text-red-600"}>{money.format(item.variance)}</span></p></div><Button type="button" size="icon" variant="ghost" className="shrink-0 text-destructive hover:text-destructive" aria-label={`Delete reconciliation for ${item.reconciliation_date}`} onClick={() => setDeletingReconciliation(item)}><Trash2 /></Button></div>)}</div>
         </section>
       </div>
       <section className="rounded-2xl border bg-card p-4">
@@ -133,6 +149,7 @@ export default function ExpensesPage() {
         </div>
       </section>
       <SafeDeleteDialog open={Boolean(deleting)} title={`Delete ${deleting?.description ?? "expense"}?`} description="This permanently removes the expense and immediately updates reports. Administrator access is required." deleting={saving} onOpenChange={(open) => !open && setDeleting(null)} onConfirm={() => void deleteExpense()} />
+      <SafeDeleteDialog open={Boolean(deletingReconciliation)} title={`Delete reconciliation for ${deletingReconciliation?.reconciliation_date ?? "this date"}?`} description="This permanently removes the saved cash reconciliation. It does not delete any payments or expenses. Administrator access is required." deleting={saving} onOpenChange={(open) => !open && setDeletingReconciliation(null)} onConfirm={() => void deleteReconciliation()} />
     </div>
   );
 }
