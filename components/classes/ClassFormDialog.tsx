@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CLASS_DAYS, classesService, type ActiveInstructor, type ClassInput, type StudioClass } from "@/services/classes.service";
 
 interface Props { open: boolean; classItem: StudioClass | null; instructors: ActiveInstructor[]; onOpenChange: (open: boolean) => void; onSaved: () => void }
-const empty: ClassInput = { class_name: "", program: "Fitness", day: "Monday", start_time: "06:00", end_time: "07:00", instructor_id: null, max_capacity: 20 };
+const empty: ClassInput = { class_name: "", program: "Fitness", day: "Monday", start_time: "06:00", end_time: "07:00", instructor_id: null, max_capacity: 20, public_booking_enabled: false };
 
 function initialForm(classItem: StudioClass | null): ClassInput {
   return classItem ? {
@@ -23,6 +23,7 @@ function initialForm(classItem: StudioClass | null): ClassInput {
     instructor_id: classItem.instructor ? classItem.instructor_id : null,
     max_capacity: classItem.max_capacity,
     status: classItem.status,
+    public_booking_enabled: classItem.public_booking_enabled,
   } : { ...empty };
 }
 
@@ -52,6 +53,7 @@ export default function ClassFormDialog({ open, classItem, instructors, onOpenCh
       <div className="space-y-2"><Label htmlFor="class-end">End time</Label><Input id="class-end" type="time" required value={form.end_time} onChange={e => setForm({ ...form, end_time: e.target.value })} /></div>
       <div className="space-y-2"><Label>Instructor</Label><Select value={form.instructor_id?.toString() ?? "unassigned"} onValueChange={value => setForm({ ...form, instructor_id: value === "unassigned" || !value ? null : Number(value) })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="unassigned">Unassigned</SelectItem>{classItem?.instructor && classItem.instructor_id !== null && !instructors.some(i => i.id === classItem.instructor_id) && <SelectItem value={String(classItem.instructor_id)} disabled>{classItem.instructor.name} (Inactive)</SelectItem>}{instructors.map(i => <SelectItem key={i.id} value={String(i.id)}>{i.name}</SelectItem>)}</SelectContent></Select></div>
       <div className="space-y-2"><Label htmlFor="class-capacity">Capacity</Label><Input id="class-capacity" type="number" min={1} max={1000} required value={form.max_capacity} onChange={e => setForm({ ...form, max_capacity: Number(e.target.value) })} /></div>
+      <label className="flex items-start gap-3 rounded-xl border p-3 sm:col-span-2"><input type="checkbox" className="mt-1" checked={form.public_booking_enabled ?? false} onChange={e => setForm({ ...form, public_booking_enabled: e.target.checked })}/><span className="text-sm"><strong className="block">Enable public class booking</strong><span className="text-muted-foreground">Students can reserve upcoming sessions using a shareable link. Full sessions automatically use a waitlist.</span></span></label>
       {error && <p role="alert" className="text-sm text-destructive sm:col-span-2">{error}</p>}
       <div className="flex justify-end gap-2 sm:col-span-2"><Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button><Button type="submit" disabled={saving}>{saving && <LoaderCircle className="animate-spin" />}{classItem ? "Save changes" : "Add class"}</Button></div>
     </form></DialogContent></Dialog>;
