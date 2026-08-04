@@ -40,7 +40,20 @@ declare class_record public."Classes"; booked_count integer; result public."Clas
 begin
   select * into class_record from public."Classes" where id=p_class_id for update;
   if class_record.id is null or class_record.status <> 'Active' or not class_record.public_booking_enabled then raise exception 'This class is not accepting online bookings.'; end if;
-  if extract(isodow from p_class_date) <> case class_record.day when 'Monday' then 1 when 'Tuesday' then 2 when 'Wednesday' then 3 when 'Thursday' then 4 when 'Friday' then 5 when 'Saturday' then 6 when 'Sunday' then 7 end then raise exception 'Choose a valid class date.'; end if;
+  if extract(isodow from p_class_date)::integer <> (
+    case class_record.day
+      when 'Monday' then 1
+      when 'Tuesday' then 2
+      when 'Wednesday' then 3
+      when 'Thursday' then 4
+      when 'Friday' then 5
+      when 'Saturday' then 6
+      when 'Sunday' then 7
+      else 0
+    end
+  ) then
+    raise exception 'Choose a valid class date.';
+  end if;
   if p_class_date < current_date or p_class_date > current_date + 30 then raise exception 'Bookings are available for the next 30 days.'; end if;
   select count(*) into booked_count from public."Class_Bookings" where class_id=p_class_id and class_date=p_class_date and status='Booked';
   insert into public."Class_Bookings" (class_id,class_date,participant_name,phone,email,status)
