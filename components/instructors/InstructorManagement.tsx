@@ -137,7 +137,7 @@ export default function InstructorManagement() {
                     <div className="rounded-xl bg-muted/50 p-2"><History className="mx-auto mb-1 size-4 text-primary" /><strong className="block text-sm">{item.attendance_records}</strong>Records</div>
                   </div>
                   <div className="mt-auto grid grid-cols-2 gap-2 pt-4 sm:flex sm:flex-wrap">
-                    <Button size="sm" variant="outline" render={<a href={`https://wa.me/${formatWhatsAppPhone(item.phone)}`} target="_blank" rel="noreferrer" aria-label={`WhatsApp ${item.name}`} />}><MessageCircle /> WhatsApp</Button>
+                    <Button nativeButton={false} size="sm" variant="outline" render={<a href={`https://wa.me/${formatWhatsAppPhone(item.phone)}`} target="_blank" rel="noreferrer" aria-label={`WhatsApp ${item.name}`} />}><MessageCircle /> WhatsApp</Button>
                     <Button type="button" size="sm" variant="outline" onClick={() => { setEditing(item); setDialog(true); }}><Pencil /> Edit</Button>
                     <Button type="button" size="sm" variant="outline" onClick={() => setOperations(item)}><CalendarClock /> Schedule & pay</Button>
                     <Button type="button" size="sm" variant={item.status === "Active" ? "destructive" : "default"} disabled={savingId === item.id} onClick={() => void changeStatus(item)}>{item.status === "Active" ? "Deactivate" : "Activate"}</Button>
