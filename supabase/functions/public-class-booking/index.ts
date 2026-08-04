@@ -24,6 +24,12 @@ Deno.serve(async (request) => {
       if(action==="cancel") { const {error:cancelError}=await supabase.rpc("cancel_public_class_booking",{p_access_token:token}); if(cancelError) throw cancelError; return reply(200,{ok:true,cancelled:true},origin); }
       return reply(200,{ok:true,booking},origin);
     }
+    if(action==="classes") {
+      const {data:classes,error}=await supabase.from("Classes").select("id,class_name,program,day,start_time,end_time,max_capacity").eq("status","Active").eq("public_booking_enabled",true).order("class_name"); if(error)throw error;
+      const classIds=(classes??[]).map(item=>item.id); const allDates=[...new Set((classes??[]).flatMap(item=>datesFor(item.day)))];
+      const {data:rows,error:bookingError}=classIds.length?await supabase.from("Class_Bookings").select("class_id,class_date,status").in("class_id",classIds).in("class_date",allDates).neq("status","Cancelled"):{data:[],error:null}; if(bookingError)throw bookingError;
+      return reply(200,{ok:true,classes:(classes??[]).map(item=>({id:item.id,className:item.class_name,program:item.program,day:item.day,startTime:item.start_time,endTime:item.end_time,capacity:item.max_capacity,dates:datesFor(item.day).map(date=>{const booked=(rows??[]).filter(row=>row.class_id===item.id&&row.class_date===date&&row.status==="Booked").length;const waiting=(rows??[]).filter(row=>row.class_id===item.id&&row.class_date===date&&row.status==="Waitlisted").length;return{date,booked,waiting,spotsLeft:Math.max(0,item.max_capacity-booked)};})}))},origin);
+    }
     const classId=id(body.classId); if(!classId) return reply(400,{error:"Invalid class."},origin);
     const {data:classItem,error:classError}=await supabase.from("Classes").select("id,class_name,program,day,start_time,end_time,max_capacity,status,public_booking_enabled").eq("id",classId).eq("status","Active").eq("public_booking_enabled",true).maybeSingle();
     if(classError) throw classError; if(!classItem) return reply(404,{error:"This class is not accepting online bookings."},origin);
