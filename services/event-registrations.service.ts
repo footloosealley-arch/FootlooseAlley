@@ -22,6 +22,8 @@ export interface EventRegistration {
   original_amount: number | null;
   discount_amount: number;
   amount_due: number | null;
+  group_size: number;
+  additional_participant_names: string[];
   created_at: string;
   updated_at: string;
 }
@@ -45,7 +47,7 @@ export interface EventRegistrationSummary {
   collected: number;
 }
 
-const fields = "id,event_id,participant_name,phone,email,payment_status,amount_paid,payment_reference,attendance_status,registration_source,coupon_code,original_amount,discount_amount,amount_due,notes,created_at,updated_at";
+const fields = "id,event_id,participant_name,phone,email,payment_status,amount_paid,payment_reference,attendance_status,registration_source,coupon_code,original_amount,discount_amount,amount_due,group_size,additional_participant_names,notes,created_at,updated_at";
 
 function normalize(input: EventRegistrationInput) {
   const participant_name = input.participant_name.trim();
@@ -82,7 +84,7 @@ async function getByEvent(eventId: number): Promise<EventRegistration[]> {
 }
 
 async function getSummaries(): Promise<EventRegistrationSummary[]> {
-  const { data, error } = await supabase.from("Event_Registrations").select("event_id,payment_status,amount_paid,attendance_status");
+  const { data, error } = await supabase.from("Event_Registrations").select("event_id,payment_status,amount_paid,attendance_status,group_size");
   if (error) {
     if (isMissingTable(error)) return [];
     throw new Error(message(error, "Unable to load event registration totals."));
@@ -90,7 +92,7 @@ async function getSummaries(): Promise<EventRegistrationSummary[]> {
   const summaries = new Map<number, EventRegistrationSummary>();
   for (const row of data ?? []) {
     const current = summaries.get(row.event_id) ?? { event_id: row.event_id, registrations: 0, attended: 0, pending_payments: 0, collected: 0 };
-    current.registrations += row.attendance_status === "Cancelled" ? 0 : 1;
+    current.registrations += row.attendance_status === "Cancelled" ? 0 : Number(row.group_size ?? 1);
     current.attended += row.attendance_status === "Attended" ? 1 : 0;
     current.pending_payments += row.payment_status === "Pending" && row.attendance_status !== "Cancelled" ? 1 : 0;
     current.collected += row.payment_status === "Paid" ? Number(row.amount_paid) : 0;
