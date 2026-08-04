@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
-import { CalendarDays, CheckCircle2, Clock3, Copy, IndianRupee, MapPin, MessageCircle, Pencil, Plus, RefreshCw, Search, Trash2, Users } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock3, Copy, IndianRupee, Link2, MapPin, MessageCircle, Pencil, Plus, RefreshCw, Search, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import BrandLogo from "@/components/branding/BrandLogo";
@@ -135,8 +135,18 @@ export default function EventsManagement() {
     const studioContact = contact !== "8884978589" ? "\nFootloose Alley: 8884978589" : "";
     const photo = item.image_url ? `\nEvent photo: ${item.image_url}` : "";
     const description = item.description ? `\n${item.description}` : "";
-    const text = `${item.title}\nDate: ${friendlyDate(item.event_date)}\nTime: ${friendlyTime(item.start_time)} – ${friendlyTime(item.end_time)}\nLocation: ${item.location}\nFee: ${fee}\nContact: ${contact}${description}${studioContact}${photo}`;
+    const registrationLink = item.public_registration_enabled ? `\nRegister and pay: ${window.location.origin}/forms/events/${item.id}` : "";
+    const text = `${item.title}\nDate: ${friendlyDate(item.event_date)}\nTime: ${friendlyTime(item.start_time)} – ${friendlyTime(item.end_time)}\nLocation: ${item.location}\nFee: ${fee}\nContact: ${contact}${description}${studioContact}${photo}${registrationLink}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+  }
+
+  async function copyRegistrationLink(item: StudioEvent) {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/forms/events/${item.id}`);
+      toast.success("Registration and payment link copied.");
+    } catch {
+      toast.error("Unable to copy the registration link.");
+    }
   }
 
   const summaryByEvent = new Map(summaries.map((summary) => [summary.event_id, summary]));
@@ -184,6 +194,7 @@ export default function EventsManagement() {
                 <div className="mt-auto grid grid-cols-2 gap-2 pt-4 sm:flex sm:flex-wrap">
                   <Button type="button" size="sm" variant="outline" onClick={() => { setEditing(item); setOpen(true); }}><Pencil /> Edit</Button>
                   <Button type="button" size="sm" variant="outline" onClick={() => share(item)}><MessageCircle /> WhatsApp</Button>
+                  {item.public_registration_enabled && <Button type="button" size="sm" variant="outline" onClick={() => void copyRegistrationLink(item)}><Link2 /> Copy link</Button>}
                   <Button type="button" size="sm" variant="outline" onClick={() => setRegistrationsEvent(item)}><Users /> Participants</Button>
                   <Button type="button" size="sm" variant="outline" disabled={savingId === item.id} onClick={() => void duplicateEvent(item)}><Copy /> Duplicate</Button>
                   {item.status === "Draft" && <Button type="button" size="sm" disabled={savingId === item.id} onClick={() => void changeStatus(item, "Upcoming")}>Publish</Button>}
