@@ -6,3 +6,6 @@ verify_jwt = false
 
 [functions.push-dispatch]
 verify_jwt = false
+
+[functions.public-event-registration]
+verify_jwt = false

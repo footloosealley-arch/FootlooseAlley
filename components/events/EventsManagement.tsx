@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
-import { CalendarDays, CheckCircle2, Clock3, Copy, IndianRupee, MapPin, MessageCircle, Pencil, Plus, RefreshCw, Search, Trash2, Users } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock3, Copy, IndianRupee, Link2, MapPin, MessageCircle, Pencil, Plus, RefreshCw, Search, Tag, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import BrandLogo from "@/components/branding/BrandLogo";
@@ -16,8 +16,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import StatCard from "@/components/ui-foundation/StatCard";
+import { eventRegistrationsService, type EventRegistrationSummary } from "@/services/event-registrations.service";
 import { EVENT_STATUSES, EVENT_TYPES, eventsService, type EventStatus, type StudioEvent } from "@/services/events.service";
 import EventFormDialog from "./EventFormDialog";
+import EventCouponsDialog from "./EventCouponsDialog";
+import EventRegistrationsDialog from "./EventRegistrationsDialog";
 
 const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 });
 const friendlyDate = (date: string) => new Intl.DateTimeFormat("en-IN", { dateStyle: "long" }).format(new Date(`${date}T00:00:00`));
@@ -48,13 +51,21 @@ export default function EventsManagement() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<StudioEvent | null>(null);
   const [deleting, setDeleting] = useState<StudioEvent | null>(null);
+  const [registrationsEvent, setRegistrationsEvent] = useState<StudioEvent | null>(null);
+  const [couponsEvent, setCouponsEvent] = useState<StudioEvent | null>(null);
+  const [summaries, setSummaries] = useState<EventRegistrationSummary[]>([]);
   const [savingId, setSavingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      setItems(await eventsService.getAll());
+      const [events, registrationSummaries] = await Promise.all([
+        eventsService.getAll(),
+        eventRegistrationsService.getSummaries(),
+      ]);
+      setItems(events);
+      setSummaries(registrationSummaries);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to load events.");
     } finally {
@@ -126,11 +137,22 @@ export default function EventsManagement() {
     const studioContact = contact !== "8884978589" ? "\nFootloose Alley: 8884978589" : "";
     const photo = item.image_url ? `\nEvent photo: ${item.image_url}` : "";
     const description = item.description ? `\n${item.description}` : "";
-    const text = `${item.title}\nDate: ${friendlyDate(item.event_date)}\nTime: ${friendlyTime(item.start_time)} – ${friendlyTime(item.end_time)}\nLocation: ${item.location}\nFee: ${fee}\nContact: ${contact}${description}${studioContact}${photo}`;
+    const registrationLink = item.public_registration_enabled ? `\nRegister and pay: ${window.location.origin}/forms/events/${item.id}` : "";
+    const text = `${item.title}\nDate: ${friendlyDate(item.event_date)}\nTime: ${friendlyTime(item.start_time)} – ${friendlyTime(item.end_time)}\nLocation: ${item.location}\nFee: ${fee}\nContact: ${contact}${description}${studioContact}${photo}${registrationLink}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
   }
 
-  const potentialRevenue = items.filter((item) => item.status === "Upcoming" && item.event_date >= today).reduce((sum, item) => sum + Number(item.fee) * item.max_capacity, 0);
+  async function copyRegistrationLink(item: StudioEvent) {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/forms/events/${item.id}`);
+      toast.success("Registration and payment link copied.");
+    } catch {
+      toast.error("Unable to copy the registration link.");
+    }
+  }
+
+  const summaryByEvent = new Map(summaries.map((summary) => [summary.event_id, summary]));
+  const totalCollected = summaries.reduce((sum, summary) => sum + summary.collected, 0);
 
   return (
     <div className="space-y-5 sm:space-y-6">
@@ -139,7 +161,7 @@ export default function EventsManagement() {
         <StatCard label="Upcoming" value={items.filter((item) => item.status === "Upcoming" && item.event_date >= today).length} icon={CalendarDays} />
         <StatCard label="This month" value={items.filter((item) => item.event_date.startsWith(month)).length} icon={Clock3} />
         <StatCard label="Completed" value={items.filter((item) => item.status === "Completed").length} icon={CheckCircle2} />
-        <StatCard label="Capacity value" value={money.format(potentialRevenue)} icon={IndianRupee} />
+        <StatCard label="Collected" value={money.format(totalCollected)} icon={IndianRupee} />
       </div>
 
       <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
@@ -154,7 +176,11 @@ export default function EventsManagement() {
 
       {loading ? <LoadingCard /> : error ? <ErrorCard message={error} onRetry={() => void load()} /> : filtered.length === 0 ? <Card><CardContent className="py-12 text-center text-muted-foreground">No events match these filters.</CardContent></Card> : (
         <div className="grid gap-4 lg:grid-cols-2">
-          {filtered.map((item) => (
+          {filtered.map((item) => {
+            const registration = summaryByEvent.get(item.id);
+            const registrationCount = registration?.registrations ?? 0;
+            const spotsLeft = Math.max(0, item.max_capacity - registrationCount);
+            return (
             <Card key={item.id} className="overflow-hidden p-0">
               <div className="relative aspect-[16/8] bg-muted">{item.image_url ? <Image src={item.image_url} alt={`${item.title} event`} fill className="object-cover" sizes="(min-width: 1024px) 50vw, 100vw" /> : <div className="flex h-full items-center justify-center bg-gradient-to-br from-violet-50 to-orange-50 p-8"><BrandLogo width={240} height={120} className="max-h-full object-contain opacity-80" /></div>}</div>
               <CardContent className="flex h-full flex-col p-4 sm:p-5">
@@ -163,13 +189,16 @@ export default function EventsManagement() {
                   <p className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2.5"><CalendarDays className="size-4 text-primary" />{friendlyDate(item.event_date)}</p>
                   <p className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2.5"><Clock3 className="size-4 text-primary" />{friendlyTime(item.start_time)}–{friendlyTime(item.end_time)}</p>
                   <p className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2.5"><MapPin className="size-4 text-primary" />{item.location}</p>
-                  <p className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2.5"><Users className="size-4 text-primary" />Capacity {item.max_capacity}</p>
+                  <p className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2.5"><Users className="size-4 text-primary" />{registrationCount}/{item.max_capacity} registered · {spotsLeft} left</p>
                 </div>
                 {item.description && <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">{item.description}</p>}
                 <p className="mt-3 text-sm font-semibold">{Number(item.fee) === 0 ? "Free entry" : money.format(Number(item.fee))}</p>
                 <div className="mt-auto grid grid-cols-2 gap-2 pt-4 sm:flex sm:flex-wrap">
                   <Button type="button" size="sm" variant="outline" onClick={() => { setEditing(item); setOpen(true); }}><Pencil /> Edit</Button>
                   <Button type="button" size="sm" variant="outline" onClick={() => share(item)}><MessageCircle /> WhatsApp</Button>
+                  {item.public_registration_enabled && <Button type="button" size="sm" variant="outline" onClick={() => void copyRegistrationLink(item)}><Link2 /> Copy link</Button>}
+                  {item.public_registration_enabled && Number(item.fee) > 0 && <Button type="button" size="sm" variant="outline" onClick={() => setCouponsEvent(item)}><Tag /> Coupons</Button>}
+                  <Button type="button" size="sm" variant="outline" onClick={() => setRegistrationsEvent(item)}><Users /> Participants</Button>
                   <Button type="button" size="sm" variant="outline" disabled={savingId === item.id} onClick={() => void duplicateEvent(item)}><Copy /> Duplicate</Button>
                   {item.status === "Draft" && <Button type="button" size="sm" disabled={savingId === item.id} onClick={() => void changeStatus(item, "Upcoming")}>Publish</Button>}
                   {item.status === "Upcoming" && <><Button type="button" size="sm" disabled={savingId === item.id} onClick={() => void changeStatus(item, "Completed")}>Complete</Button><Button type="button" size="sm" variant="destructive" disabled={savingId === item.id} onClick={() => void changeStatus(item, "Cancelled")}>Cancel</Button></>}
@@ -178,11 +207,14 @@ export default function EventsManagement() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 
       <EventFormDialog open={open} eventItem={editing} onOpenChange={(next) => { setOpen(next); if (!next) setEditing(null); }} onSaved={() => void load()} />
+      <EventCouponsDialog open={Boolean(couponsEvent)} eventItem={couponsEvent} onOpenChange={(next) => !next && setCouponsEvent(null)} />
+      <EventRegistrationsDialog open={Boolean(registrationsEvent)} eventItem={registrationsEvent} onOpenChange={(next) => !next && setRegistrationsEvent(null)} onChanged={() => void load()} />
       <SafeDeleteDialog open={Boolean(deleting)} title={`Delete ${deleting?.title ?? "event"}?`} description="Only draft or cancelled events can be permanently deleted. The event photo will also be removed." deleting={savingId === deleting?.id} onOpenChange={(next) => !next && setDeleting(null)} onConfirm={() => void deleteEvent()} />
     </div>
   );
