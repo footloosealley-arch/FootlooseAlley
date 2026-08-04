@@ -15,6 +15,9 @@ export interface EventRegistration {
   amount_paid: number;
   attendance_status: EventAttendanceStatus;
   notes: string | null;
+  email: string | null;
+  payment_reference: string | null;
+  registration_source: "Staff" | "Public Link";
   created_at: string;
   updated_at: string;
 }
@@ -26,6 +29,8 @@ export interface EventRegistrationInput {
   amount_paid: number;
   attendance_status: EventAttendanceStatus;
   notes?: string | null;
+  email?: string | null;
+  payment_reference?: string | null;
 }
 
 export interface EventRegistrationSummary {
@@ -36,18 +41,21 @@ export interface EventRegistrationSummary {
   collected: number;
 }
 
-const fields = "id,event_id,participant_name,phone,payment_status,amount_paid,attendance_status,notes,created_at,updated_at";
+const fields = "id,event_id,participant_name,phone,email,payment_status,amount_paid,payment_reference,attendance_status,registration_source,notes,created_at,updated_at";
 
 function normalize(input: EventRegistrationInput) {
   const participant_name = input.participant_name.trim();
   const phone = input.phone.replace(/\D/g, "");
   const notes = input.notes?.trim() || null;
+  const email = input.email?.trim().toLowerCase() || null;
+  const payment_reference = input.payment_reference?.trim() || null;
   if (participant_name.length < 2 || participant_name.length > 120) throw new Error("Participant name must contain 2 to 120 characters.");
   if (phone.length < 7 || phone.length > 15) throw new Error("Phone number must contain 7 to 15 digits.");
   if (!EVENT_PAYMENT_STATUSES.includes(input.payment_status)) throw new Error("Select a valid payment status.");
   if (!EVENT_ATTENDANCE_STATUSES.includes(input.attendance_status)) throw new Error("Select a valid attendance status.");
   if (!Number.isFinite(input.amount_paid) || input.amount_paid < 0) throw new Error("Amount paid must be zero or greater.");
-  return { ...input, participant_name, phone, notes, amount_paid: Number(input.amount_paid.toFixed(2)) };
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Enter a valid email address.");
+  return { ...input, participant_name, phone, email, payment_reference, notes, amount_paid: Number(input.amount_paid.toFixed(2)) };
 }
 
 function message(error: unknown, fallback: string): string {
