@@ -33,6 +33,10 @@ type RegistrationResult = {
   phone?: string;
   paymentUrl?: string | null;
   amount?: number;
+  originalAmount?: number;
+  discountAmount?: number;
+  couponCode?: string | null;
+  discountPercent?: number;
 };
 
 const inputClass = "mt-2 min-h-11 w-full rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-rose-500 focus:ring-4 focus:ring-rose-100";
@@ -63,6 +67,8 @@ export default function PublicEventRegistrationPage({ params }: { params: Promis
   const [registration, setRegistration] = useState<{ id: number; phone: string; paymentUrl: string | null; amount: number } | null>(null);
   const [reference, setReference] = useState("");
   const [referenceSaved, setReferenceSaved] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponResult, setCouponResult] = useState<{ code: string; percent: number; discount: number; amount: number } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -98,6 +104,7 @@ export default function PublicEventRegistrationPage({ params }: { params: Promis
         name: String(form.get("name") ?? ""),
         phone: String(form.get("phone") ?? ""),
         email: String(form.get("email") ?? ""),
+        couponCode: couponResult?.code ?? couponCode,
         website: String(form.get("website") ?? ""),
       });
       if (!result.registrationId || !result.phone) throw new Error("Registration was received, but the confirmation could not be displayed.");
@@ -107,6 +114,17 @@ export default function PublicEventRegistrationPage({ params }: { params: Promis
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function applyCoupon() {
+    if (!eventId || !couponCode.trim()) { setError("Enter a coupon code."); return; }
+    setSubmitting(true); setError(""); setCouponResult(null);
+    try {
+      const result = await callRegistration({ action: "coupon", eventId, couponCode });
+      setCouponResult({ code: result.couponCode ?? couponCode.toUpperCase(), percent: result.discountPercent ?? 0, discount: result.discountAmount ?? 0, amount: result.amount ?? 0 });
+      setCouponCode(result.couponCode ?? couponCode.toUpperCase());
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to apply coupon."); }
+    finally { setSubmitting(false); }
   }
 
   async function saveReference(event: FormEvent<HTMLFormElement>) {
@@ -169,6 +187,7 @@ export default function PublicEventRegistrationPage({ params }: { params: Promis
                   <h2 className="text-xl font-bold text-slate-950">Reserve your place</h2>
                   <div className="grid gap-5 sm:grid-cols-2"><label className={labelClass}>Full name <span className="text-rose-600">*</span><input className={inputClass} name="name" autoComplete="name" required minLength={2} maxLength={120} /></label><label className={labelClass}>Mobile number <span className="text-rose-600">*</span><input className={inputClass} name="phone" type="tel" inputMode="tel" autoComplete="tel" required minLength={7} maxLength={20} /></label></div>
                   <label className={labelClass}>Email (optional)<input className={inputClass} name="email" type="email" autoComplete="email" maxLength={200} /></label>
+                  {eventItem.fee > 0 && <div className="rounded-2xl border border-rose-100 bg-rose-50/50 p-4"><label className={labelClass}>Discount coupon (optional)</label><div className="mt-2 flex gap-2"><input className="min-h-11 min-w-0 flex-1 rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm uppercase text-slate-900 outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-100" value={couponCode} onChange={(event) => { setCouponCode(event.target.value.toUpperCase()); setCouponResult(null); }} maxLength={24} placeholder="ALLEY10" /><Button type="button" variant="outline" className="min-h-11 rounded-xl" disabled={submitting || !couponCode.trim()} onClick={() => void applyCoupon()}>Apply</Button></div>{couponResult && <div className="mt-3 rounded-xl bg-emerald-100 p-3 text-sm text-emerald-900"><p className="font-bold">{couponResult.code} applied — {couponResult.percent}% off</p><p className="mt-1"><span className="line-through">{money.format(eventItem.fee)}</span> <strong className="ml-2 text-base">{money.format(couponResult.amount)}</strong> · You save {money.format(couponResult.discount)}</p></div>}</div>}
                   <label className="absolute -left-[10000px]" aria-hidden="true">Website<input name="website" tabIndex={-1} autoComplete="off" /></label>
                   {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
                   <Button type="submit" size="lg" className="w-full rounded-xl" disabled={submitting}>{submitting ? <Loader2 className="animate-spin" /> : <Ticket />} Register{eventItem.fee > 0 ? " and continue to payment" : ""}</Button>
