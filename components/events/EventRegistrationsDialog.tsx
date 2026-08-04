@@ -92,6 +92,7 @@ export default function EventRegistrationsDialog({ open, eventItem, onOpenChange
   }, [items, search]);
 
   const active = items.filter((item) => item.attendance_status !== "Cancelled");
+  const activePeople = active.reduce((sum, item) => sum + Number(item.group_size ?? 1), 0);
   const collected = items.filter((item) => item.payment_status === "Paid").reduce((sum, item) => sum + Number(item.amount_paid), 0);
 
   function startAdd() {
@@ -161,7 +162,7 @@ export default function EventRegistrationsDialog({ open, eventItem, onOpenChange
           </DialogHeader>
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <div className="rounded-xl bg-muted/50 p-3 text-sm"><Users className="mb-1 size-4 text-primary" /><strong className="block text-lg">{active.length}</strong>Registered</div>
+            <div className="rounded-xl bg-muted/50 p-3 text-sm"><Users className="mb-1 size-4 text-primary" /><strong className="block text-lg">{activePeople}</strong>Registered</div>
             <div className="rounded-xl bg-muted/50 p-3 text-sm"><UserCheck className="mb-1 size-4 text-primary" /><strong className="block text-lg">{items.filter((item) => item.attendance_status === "Attended").length}</strong>Attended</div>
             <div className="rounded-xl bg-muted/50 p-3 text-sm"><CheckCircle2 className="mb-1 size-4 text-primary" /><strong className="block text-lg">{items.filter((item) => item.payment_status === "Paid").length}</strong>Paid</div>
             <div className="rounded-xl bg-muted/50 p-3 text-sm"><IndianRupee className="mb-1 size-4 text-primary" /><strong className="block text-lg">₹{collected.toLocaleString("en-IN")}</strong>Collected</div>
@@ -182,7 +183,7 @@ export default function EventRegistrationsDialog({ open, eventItem, onOpenChange
               <div className="grid grid-cols-2 gap-2 sm:col-span-2 sm:flex sm:justify-end"><Button type="button" variant="outline" onClick={closeForm}>Cancel</Button><Button type="submit" disabled={saving}>{saving && <LoaderCircle className="animate-spin" />}{editing ? "Save" : "Register"}</Button></div>
             </form>
           ) : (
-            <div className="flex flex-col gap-3 sm:flex-row"><label className="relative flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input className="h-11 pl-9" placeholder="Search participants" value={search} onChange={(event) => setSearch(event.target.value)} /></label><Button type="button" className="h-11" disabled={active.length >= Number(eventItem?.max_capacity ?? 0)} onClick={startAdd}><Plus /> Register participant</Button></div>
+            <div className="flex flex-col gap-3 sm:flex-row"><label className="relative flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input className="h-11 pl-9" placeholder="Search participants" value={search} onChange={(event) => setSearch(event.target.value)} /></label><Button type="button" className="h-11" disabled={activePeople >= Number(eventItem?.max_capacity ?? 0)} onClick={startAdd}><Plus /> Register participant</Button></div>
           )}
 
           {!showForm && (loading ? <div className="py-10 text-center text-sm text-muted-foreground"><LoaderCircle className="mx-auto mb-2 animate-spin" />Loading participants...</div> : error ? <p className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">{error}</p> : filtered.length === 0 ? <p className="py-10 text-center text-sm text-muted-foreground">No participants match this search.</p> : (
@@ -192,6 +193,7 @@ export default function EventRegistrationsDialog({ open, eventItem, onOpenChange
                   <div className="flex items-start justify-between gap-3"><div><h3 className="font-semibold">{item.participant_name}</h3><p className="mt-1 text-sm text-muted-foreground">{item.phone}</p></div><span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold">{item.attendance_status}</span></div>
                   <div className="mt-3 flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">{item.payment_status}</span><span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">₹{Number(item.amount_paid).toLocaleString("en-IN")}</span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700">{item.registration_source}</span></div>
                   {item.coupon_code && <p className="mt-2 text-xs font-medium text-emerald-700">Coupon {item.coupon_code}: ₹{Number(item.discount_amount).toLocaleString("en-IN")} off · ₹{Number(item.amount_due).toLocaleString("en-IN")} due</p>}
+                  {item.group_size > 1 && <div className="mt-2 rounded-xl bg-blue-50 p-2.5 text-xs text-blue-900"><p className="font-semibold">Group booking · {item.group_size} participants</p><p className="mt-1">Additional: {item.additional_participant_names.join(", ")}</p></div>}
                   {item.payment_reference && <p className="mt-2 text-xs text-muted-foreground">UPI reference: {item.payment_reference}</p>}
                   {item.notes && <p className="mt-3 text-sm text-muted-foreground">{item.notes}</p>}
                   <div className="mt-4 grid grid-cols-3 gap-2"><Button size="sm" variant="outline" render={<a href={`https://wa.me/${whatsappPhone(item.phone)}`} target="_blank" rel="noreferrer" />}><MessageCircle /> Chat</Button><Button type="button" size="sm" variant="outline" onClick={() => startEdit(item)}><Pencil /> Edit</Button><Button type="button" size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setDeleting(item)}><Trash2 /> Delete</Button></div>
