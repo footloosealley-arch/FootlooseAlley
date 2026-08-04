@@ -46,7 +46,7 @@ const navigationGroups: Array<{
   },
   {
     label: "Finance & Insights",
-    hrefs: ["/payments", "/expenses", "/memberships", "/reports", "/settings"],
+    hrefs: ["/payments", "/expenses", "/memberships", "/reports", "/audit-log", "/settings"],
   },
 ];
 
