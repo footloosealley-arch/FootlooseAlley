@@ -1,6 +1,7 @@
 "use client";
 
-import { CalendarClock, History, Pencil, Trash2, UserRound, Users } from "lucide-react";
+import { CalendarClock, Copy, History, Pencil, Trash2, UserRound, Users } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import type { StudioClass } from "@/services/classes.service";
@@ -20,6 +21,7 @@ function displayTime(value: string): string {
 }
 
 export default function ClassList({ items, savingId, onEdit, onStatus, onDelete }: Props) {
+  async function copyLink(id: number) { try { await navigator.clipboard.writeText(`${window.location.origin}/forms/classes/${id}`); toast.success("Class booking link copied."); } catch { toast.error("Unable to copy class booking link."); } }
   if (!items.length) {
     return <p className="p-12 text-center text-sm text-muted-foreground">No classes match your filters.</p>;
   }
@@ -52,6 +54,7 @@ export default function ClassList({ items, savingId, onEdit, onStatus, onDelete 
 
             <div className="mt-auto grid grid-cols-2 gap-2 pt-4 sm:flex sm:flex-wrap">
               <Button type="button" size="sm" variant="outline" onClick={() => onEdit(item)}><Pencil /> Edit</Button>
+              {item.public_booking_enabled && <Button type="button" size="sm" variant="outline" onClick={() => void copyLink(item.id)}><Copy /> Booking link</Button>}
               <Button type="button" size="sm" variant={item.status === "Active" ? "destructive" : "default"} disabled={savingId === item.id} onClick={() => onStatus(item)}>
                 {item.status === "Active" ? "Deactivate" : "Activate"}
               </Button>
