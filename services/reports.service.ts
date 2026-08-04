@@ -9,6 +9,9 @@ export interface ReportTrendPoint {
   date: string;
   label: string;
   revenue: number;
+  membershipRevenue: number;
+  eventRevenue: number;
+  refunds: number;
   attendance: number;
   enquiries: number;
 }
@@ -20,6 +23,11 @@ export interface ReportBreakdownPoint {
 
 export interface ReportSummary {
   revenue: number;
+  membershipRevenue: number;
+  eventRevenue: number;
+  membershipRefunds: number;
+  eventRefunds: number;
+  grossRevenue: number;
   paymentCount: number;
   averagePayment: number;
   attendance: number;
@@ -55,6 +63,9 @@ interface PaymentRow {
   payment_method: string | null;
   payment_status: string | null;
 }
+
+interface EventPaymentRow { id: number; amount_paid: number | string | null; payment_status: string; payment_verified_at: string | null; }
+interface EventRefundRow { id: number; amount: number | string; created_at: string; reason: string; }
 
 interface AttendanceRow {
   id: number;
@@ -132,11 +143,13 @@ function toBreakdown(map: Map<string, number>): ReportBreakdownPoint[] {
 
 class ReportsService {
   async getReportsData(range: ReportDateRange): Promise<ReportsData> {
-    const [paymentsResult, attendanceResult, studentsResult, enquiriesResult, feeDuesResult] =
+    const [paymentsResult, eventPaymentsResult, eventRefundsResult, attendanceResult, studentsResult, enquiriesResult, feeDuesResult] =
       await Promise.all([
         supabase
           .from("Payments")
           .select("id,amount,payment_date,payment_method,payment_status"),
+        supabase.from("Event_Registrations").select("id,amount_paid,payment_status,payment_verified_at"),
+        supabase.from("Event_Refunds").select("id,amount,created_at,reason"),
         supabase.from("Attendance").select("id,date,status"),
         supabase
           .from("Students")
@@ -152,12 +165,16 @@ class ReportsService {
       ]);
 
     if (paymentsResult.error) throw paymentsResult.error;
+    if (eventPaymentsResult.error) throw eventPaymentsResult.error;
+    if (eventRefundsResult.error) throw eventRefundsResult.error;
     if (attendanceResult.error) throw attendanceResult.error;
     if (studentsResult.error) throw studentsResult.error;
     if (enquiriesResult.error) throw enquiriesResult.error;
     if (feeDuesResult.error) throw feeDuesResult.error;
 
     const payments = (paymentsResult.data ?? []) as PaymentRow[];
+    const eventPayments = (eventPaymentsResult.data ?? []) as EventPaymentRow[];
+    const eventRefunds = (eventRefundsResult.data ?? []) as EventRefundRow[];
     const attendance = (attendanceResult.data ?? []) as AttendanceRow[];
     const students = (studentsResult.data ?? []) as StudentRow[];
     const enquiries = (enquiriesResult.data ?? []) as EnquiryRow[];
@@ -170,6 +187,9 @@ class ReportsService {
       (payment) =>
         dateInRange(payment.payment_date) && isCompletedPayment(payment.payment_status)
     );
+    const rangeMembershipRefunds = payments.filter((payment) => dateInRange(payment.payment_date) && payment.payment_status?.trim().toLowerCase() === "refunded");
+    const rangeEventPayments = eventPayments.filter((payment) => payment.payment_status === "Paid" && dateInRange(payment.payment_verified_at?.slice(0, 10)));
+    const rangeEventRefunds = eventRefunds.filter((refund) => dateInRange(refund.created_at.slice(0, 10)));
     const rangeAttendance = attendance.filter(
       (record) => dateInRange(record.date) && isPresent(record.status)
     );
@@ -178,10 +198,15 @@ class ReportsService {
     );
     const rangeTrials = enquiries.filter((enquiry) => dateInRange(enquiry.trial_date));
 
-    const revenue = rangePayments.reduce(
+    const membershipRevenue = rangePayments.reduce(
       (total, payment) => total + Number(payment.amount ?? 0),
       0
     );
+    const eventRevenue = rangeEventPayments.reduce((total, payment) => total + Number(payment.amount_paid ?? 0), 0);
+    const membershipRefunds = rangeMembershipRefunds.reduce((total, payment) => total + Number(payment.amount ?? 0), 0);
+    const eventRefundAmount = rangeEventRefunds.reduce((total, refund) => total + Number(refund.amount), 0);
+    const grossRevenue = membershipRevenue + eventRevenue;
+    const revenue = grossRevenue - membershipRefunds - eventRefundAmount;
     const convertedEnquiries = rangeEnquiries.filter((enquiry) =>
       isConvertedEnquiry(enquiry.Status)
     ).length;
@@ -214,6 +239,9 @@ class ReportsService {
           month: "short",
         }).format(new Date(year, month - 1, day)),
         revenue: 0,
+        membershipRevenue: 0,
+        eventRevenue: 0,
+        refunds: 0,
         attendance: 0,
         enquiries: 0,
       });
@@ -222,8 +250,11 @@ class ReportsService {
 
     rangePayments.forEach((payment) => {
       const point = dayMap.get(payment.payment_date);
-      if (point) point.revenue += Number(payment.amount ?? 0);
+      if (point) { point.membershipRevenue += Number(payment.amount ?? 0); point.revenue += Number(payment.amount ?? 0); }
     });
+    rangeEventPayments.forEach((payment) => { const point = payment.payment_verified_at ? dayMap.get(payment.payment_verified_at.slice(0, 10)) : null; if (point) { point.eventRevenue += Number(payment.amount_paid ?? 0); point.revenue += Number(payment.amount_paid ?? 0); } });
+    rangeMembershipRefunds.forEach((payment) => { const point = dayMap.get(payment.payment_date); if (point) { point.refunds += Number(payment.amount ?? 0); point.revenue -= Number(payment.amount ?? 0); } });
+    rangeEventRefunds.forEach((refund) => { const point = dayMap.get(refund.created_at.slice(0, 10)); if (point) { point.refunds += Number(refund.amount); point.revenue -= Number(refund.amount); } });
     rangeAttendance.forEach((record) => {
       const point = record.date ? dayMap.get(record.date) : null;
       if (point) point.attendance += 1;
@@ -271,9 +302,14 @@ class ReportsService {
 
     const summary: ReportSummary = {
       revenue: Number(revenue.toFixed(2)),
-      paymentCount: rangePayments.length,
+      membershipRevenue: Number(membershipRevenue.toFixed(2)),
+      eventRevenue: Number(eventRevenue.toFixed(2)),
+      membershipRefunds: Number(membershipRefunds.toFixed(2)),
+      eventRefunds: Number(eventRefundAmount.toFixed(2)),
+      grossRevenue: Number(grossRevenue.toFixed(2)),
+      paymentCount: rangePayments.length + rangeEventPayments.length,
       averagePayment:
-        rangePayments.length > 0 ? Number((revenue / rangePayments.length).toFixed(2)) : 0,
+        rangePayments.length + rangeEventPayments.length > 0 ? Number((grossRevenue / (rangePayments.length + rangeEventPayments.length)).toFixed(2)) : 0,
       attendance: rangeAttendance.length,
       activeStudents: students.filter((student) => student.Status === "Active").length,
       newStudents: students.filter((student) => dateInRange(student.join_date)).length,
