@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
-import { CalendarDays, CheckCircle2, Clock3, Copy, IndianRupee, Link2, MapPin, MessageCircle, Pencil, Plus, RefreshCw, Search, Trash2, Users } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock3, Copy, IndianRupee, Link2, MapPin, MessageCircle, Pencil, Plus, RefreshCw, Search, Tag, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import BrandLogo from "@/components/branding/BrandLogo";
@@ -19,6 +19,7 @@ import StatCard from "@/components/ui-foundation/StatCard";
 import { eventRegistrationsService, type EventRegistrationSummary } from "@/services/event-registrations.service";
 import { EVENT_STATUSES, EVENT_TYPES, eventsService, type EventStatus, type StudioEvent } from "@/services/events.service";
 import EventFormDialog from "./EventFormDialog";
+import EventCouponsDialog from "./EventCouponsDialog";
 import EventRegistrationsDialog from "./EventRegistrationsDialog";
 
 const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 });
@@ -51,6 +52,7 @@ export default function EventsManagement() {
   const [editing, setEditing] = useState<StudioEvent | null>(null);
   const [deleting, setDeleting] = useState<StudioEvent | null>(null);
   const [registrationsEvent, setRegistrationsEvent] = useState<StudioEvent | null>(null);
+  const [couponsEvent, setCouponsEvent] = useState<StudioEvent | null>(null);
   const [summaries, setSummaries] = useState<EventRegistrationSummary[]>([]);
   const [savingId, setSavingId] = useState<number | null>(null);
 
@@ -195,6 +197,7 @@ export default function EventsManagement() {
                   <Button type="button" size="sm" variant="outline" onClick={() => { setEditing(item); setOpen(true); }}><Pencil /> Edit</Button>
                   <Button type="button" size="sm" variant="outline" onClick={() => share(item)}><MessageCircle /> WhatsApp</Button>
                   {item.public_registration_enabled && <Button type="button" size="sm" variant="outline" onClick={() => void copyRegistrationLink(item)}><Link2 /> Copy link</Button>}
+                  {item.public_registration_enabled && Number(item.fee) > 0 && <Button type="button" size="sm" variant="outline" onClick={() => setCouponsEvent(item)}><Tag /> Coupons</Button>}
                   <Button type="button" size="sm" variant="outline" onClick={() => setRegistrationsEvent(item)}><Users /> Participants</Button>
                   <Button type="button" size="sm" variant="outline" disabled={savingId === item.id} onClick={() => void duplicateEvent(item)}><Copy /> Duplicate</Button>
                   {item.status === "Draft" && <Button type="button" size="sm" disabled={savingId === item.id} onClick={() => void changeStatus(item, "Upcoming")}>Publish</Button>}
@@ -210,6 +213,7 @@ export default function EventsManagement() {
       )}
 
       <EventFormDialog open={open} eventItem={editing} onOpenChange={(next) => { setOpen(next); if (!next) setEditing(null); }} onSaved={() => void load()} />
+      <EventCouponsDialog open={Boolean(couponsEvent)} eventItem={couponsEvent} onOpenChange={(next) => !next && setCouponsEvent(null)} />
       <EventRegistrationsDialog open={Boolean(registrationsEvent)} eventItem={registrationsEvent} onOpenChange={(next) => !next && setRegistrationsEvent(null)} onChanged={() => void load()} />
       <SafeDeleteDialog open={Boolean(deleting)} title={`Delete ${deleting?.title ?? "event"}?`} description="Only draft or cancelled events can be permanently deleted. The event photo will also be removed." deleting={savingId === deleting?.id} onOpenChange={(next) => !next && setDeleting(null)} onConfirm={() => void deleteEvent()} />
     </div>
