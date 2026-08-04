@@ -590,6 +590,26 @@ export default function EnquiriesPage() {
     }
   }
 
+  async function cancelTrial(enquiry: Enquiry) {
+    const reason = window.prompt("Enter the reason for cancelling this trial class:");
+    if (reason === null) return;
+    if (reason.trim().length < 3) { alert("Please enter a cancellation reason."); return; }
+    try {
+      const { error } = await supabase.rpc("cancel_enquiry_trial_booking", { p_enquiry_id: enquiry.id, p_reason: reason.trim() });
+      if (error) throw error;
+      await loadData();
+      let phone = (enquiry.Phone ?? "").replace(/\D/g, "");
+      if (phone.length === 10) phone = `91${phone}`;
+      const trialDate = enquiry.trial_date ? new Intl.DateTimeFormat("en-IN", { dateStyle: "long" }).format(new Date(`${enquiry.trial_date}T00:00:00`)) : "the scheduled date";
+      const message = `Hi ${enquiry.Name?.trim() || "there"}, your Footloose Alley trial-class booking for ${enquiry.Program || "your selected class"} on ${trialDate} has been cancelled. Reason: ${reason.trim()}. Please contact us if you would like to choose another class or date.`;
+      if (phone) window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+      else alert("Trial cancelled. No phone number is available for the WhatsApp message.");
+    } catch (error) {
+      console.error("Unable to cancel trial booking:", error);
+      alert(error instanceof Error ? error.message : "Unable to cancel the trial booking.");
+    }
+  }
+
   async function convertStudent() {
     if (
       !selectedEnquiry ||
@@ -1015,6 +1035,7 @@ export default function EnquiriesPage() {
           onMarkFollowedUp={
             markFollowedUp
           }
+          onCancelTrial={cancelTrial}
         />
       ) : (
         <EnquiryTable
@@ -1033,6 +1054,7 @@ export default function EnquiriesPage() {
           onMarkFollowedUp={
             markFollowedUp
           }
+          onCancelTrial={cancelTrial}
         />
       )}
 
