@@ -45,8 +45,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    await supabase.rpc("claim_first_admin");
-
     const { data, error } = await supabase
       .from("profiles")
       .select("id,email,full_name,role,is_active")
