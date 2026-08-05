@@ -312,6 +312,20 @@ Deno.serve(async (request) => {
     });
   }
 
+  const declaredLength = Number(
+    request.headers.get("content-length") ?? "0",
+  );
+
+  if (
+    Number.isFinite(declaredLength) &&
+    declaredLength > 6 * 1024 * 1024
+  ) {
+    return jsonResponse(413, {
+      ok: false,
+      error: "The submitted form is too large.",
+    });
+  }
+
   const supabaseUrl =
     Deno.env.get("SUPABASE_URL");
   const serviceRoleKey =
