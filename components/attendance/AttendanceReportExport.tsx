@@ -12,6 +12,34 @@ function csvCell(value: unknown) {
   return `"${text.replaceAll('"', '""')}"`;
 }
 
+function formatAttendanceTime(value: string | null) {
+  if (!value) return "";
+
+  if (value.includes("T")) {
+    const timestamp = new Date(value);
+    if (!Number.isNaN(timestamp.getTime())) {
+      return new Intl.DateTimeFormat("en-IN", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Kolkata",
+      }).format(timestamp);
+    }
+  }
+
+  const [hoursValue, minutesValue] = value.split(":");
+  const hours = Number(hoursValue);
+  const minutes = Number(minutesValue);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return value;
+
+  return new Intl.DateTimeFormat("en-IN", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(2000, 0, 1, hours, minutes)));
+}
+
 export default function AttendanceReportExport({ records }: Props) {
   function exportCsv() {
     const header = ["Date", "Student", "Student Code", "Phone", "Program", "Class", "Instructor", "Status", "Check In", "Remarks"];
@@ -24,7 +52,7 @@ export default function AttendanceReportExport({ records }: Props) {
       record.studio_class?.class_name || record.session_name,
       record.instructor?.name,
       record.status,
-      record.check_in_time,
+      formatAttendanceTime(record.marked_at || record.check_in_time),
       record.remarks,
     ]);
     const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
