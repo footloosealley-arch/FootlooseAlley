@@ -73,6 +73,19 @@ function formatDate(value: string | null | undefined): string {
 
 function formatTime(value: string | null | undefined): string {
   if (!value) return "-";
+
+  if (value.includes("T")) {
+    const timestamp = new Date(value);
+    if (!Number.isNaN(timestamp.getTime())) {
+      return new Intl.DateTimeFormat("en-IN", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Kolkata",
+      }).format(timestamp);
+    }
+  }
+
   const [hours, minutes] = value.split(":").map(Number);
   if (Number.isNaN(hours) || Number.isNaN(minutes)) return value;
   const date = new Date();
@@ -651,8 +664,8 @@ function AttendanceTab({ attendance }: { attendance: StudentAttendanceRecord[] }
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {formatDate(record.date)}
-                    {record.check_in_time
-                      ? ` · Check-in ${formatTime(record.check_in_time)}`
+                    {record.marked_at || record.check_in_time
+                      ? ` · Check-in ${formatTime(record.marked_at || record.check_in_time)}`
                       : ""}
                   </p>
                 </div>
