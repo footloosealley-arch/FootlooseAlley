@@ -29,8 +29,35 @@ function formatTime(value: string | null) {
     return "—";
   }
 
-  const timePart = value.includes("T") ? value.split("T")[1] : value;
-  return timePart.slice(0, 5);
+  if (value.includes("T")) {
+    const timestamp = new Date(value);
+
+    if (!Number.isNaN(timestamp.getTime())) {
+      return new Intl.DateTimeFormat("en-IN", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Kolkata",
+      }).format(timestamp);
+    }
+  }
+
+  const [hoursValue, minutesValue] = value.split(":");
+  const hours = Number(hoursValue);
+  const minutes = Number(minutesValue);
+
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+    return value;
+  }
+
+  const time = new Date(Date.UTC(2000, 0, 1, hours, minutes));
+
+  return new Intl.DateTimeFormat("en-IN", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "UTC",
+  }).format(time);
 }
 
 export default function TodayAttendanceTable({
@@ -137,7 +164,7 @@ export default function TodayAttendanceTable({
                       </span>
                     </td>
                     <td className="px-5 py-4">
-                      {formatTime(record.check_in_time || record.marked_at)}
+                      {formatTime(record.marked_at || record.check_in_time)}
                     </td>
                     <td className="px-5 py-4">
                       {record.instructor?.name || "—"}
@@ -174,7 +201,7 @@ export default function TodayAttendanceTable({
                   <div>
                     <p className="text-muted-foreground">Time</p>
                     <p className="mt-1 font-medium">
-                      {formatTime(record.check_in_time || record.marked_at)}
+                      {formatTime(record.marked_at || record.check_in_time)}
                     </p>
                   </div>
                   <div>
