@@ -26,6 +26,18 @@ interface ReceptionActivityProps {
 function formatTime(value: string | null): string {
   if (!value) return "Time not recorded";
 
+  if (value.includes("T")) {
+    const timestamp = new Date(value);
+    if (!Number.isNaN(timestamp.getTime())) {
+      return new Intl.DateTimeFormat("en-IN", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Kolkata",
+      }).format(timestamp);
+    }
+  }
+
   const parts = value.split(":");
   if (parts.length < 2) return value;
 
