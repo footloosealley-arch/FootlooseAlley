@@ -410,6 +410,13 @@ export default function AttendanceRegister() {
 
       const markedAt =
         new Date().toISOString();
+      const checkInTime = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Kolkata",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hourCycle: "h23",
+      }).format(new Date());
 
       await attendanceService.saveAttendance(
         markedStudents.map((student) => ({
@@ -427,6 +434,7 @@ export default function AttendanceRegister() {
                   selectedInstructorId
                 )
               : null,
+          check_in_time: checkInTime,
           remarks:
             remarks[student.id]?.trim() ||
             null,

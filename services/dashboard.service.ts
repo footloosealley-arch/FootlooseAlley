@@ -151,6 +151,7 @@ interface DashboardAttendanceRow {
   date: string | null;
   status: string | null;
   check_in_time: string | null;
+  marked_at: string | null;
   session_name: string | null;
 }
 
@@ -408,7 +409,7 @@ class DashboardService {
 
       supabase
         .from("Attendance")
-        .select("id,student_id,date,status,check_in_time,session_name"),
+        .select("id,student_id,date,status,check_in_time,marked_at,session_name"),
 
       supabase
         .from("Enquiries")
@@ -748,7 +749,7 @@ class DashboardService {
               student?.Program?.trim() ||
               student?.membership_plan?.trim() ||
               null,
-            checkInTime: record.check_in_time,
+            checkInTime: record.marked_at || record.check_in_time,
             sessionName: record.session_name,
             status: record.status?.trim() || "Present",
           };
