@@ -55,6 +55,7 @@ export type SaveAttendanceItem = {
   class_id: number | null;
   batch: string;
   instructor_id: number | null;
+  check_in_time: string;
   remarks: string | null;
   marked_by: string;
   session_name: string | null;
