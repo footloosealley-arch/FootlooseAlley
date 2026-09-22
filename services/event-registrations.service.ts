@@ -23,6 +23,7 @@ export interface EventRegistration {
   discount_amount: number;
   amount_due: number | null;
   group_size: number;
+  selected_dates: string[];
   additional_participant_names: string[];
   receipt_number: string | null;
   payment_verified_at: string | null;
@@ -44,6 +45,7 @@ export interface EventRegistrationInput {
   notes?: string | null;
   email?: string | null;
   payment_reference?: string | null;
+  selected_dates?: string[];
 }
 
 export interface EventRegistrationSummary {
@@ -59,7 +61,7 @@ export interface EventRefund {
   amount: number; reason: string; reference_number: string | null; created_at: string;
 }
 
-const fields = "id,event_id,participant_name,phone,email,payment_status,amount_paid,payment_reference,attendance_status,registration_source,coupon_code,original_amount,discount_amount,amount_due,group_size,additional_participant_names,receipt_number,payment_verified_at,payment_verified_by,cancelled_at,cancelled_by,cancellation_reason,notes,created_at,updated_at";
+const fields = "id,event_id,participant_name,phone,email,selected_dates,payment_status,amount_paid,payment_reference,attendance_status,registration_source,coupon_code,original_amount,discount_amount,amount_due,group_size,additional_participant_names,receipt_number,payment_verified_at,payment_verified_by,cancelled_at,cancelled_by,cancellation_reason,notes,created_at,updated_at";
 
 function normalize(input: EventRegistrationInput) {
   const participant_name = input.participant_name.trim();
@@ -67,13 +69,15 @@ function normalize(input: EventRegistrationInput) {
   const notes = input.notes?.trim() || null;
   const email = input.email?.trim().toLowerCase() || null;
   const payment_reference = input.payment_reference?.trim() || null;
+  const selected_dates = [...new Set(input.selected_dates ?? [])].filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)).sort();
+  if (selected_dates.length === 0) throw new Error("Select at least one event date.");
   if (participant_name.length < 2 || participant_name.length > 120) throw new Error("Participant name must contain 2 to 120 characters.");
   if (phone.length < 7 || phone.length > 15) throw new Error("Phone number must contain 7 to 15 digits.");
   if (!EVENT_PAYMENT_STATUSES.includes(input.payment_status)) throw new Error("Select a valid payment status.");
   if (!EVENT_ATTENDANCE_STATUSES.includes(input.attendance_status)) throw new Error("Select a valid attendance status.");
   if (!Number.isFinite(input.amount_paid) || input.amount_paid < 0) throw new Error("Amount paid must be zero or greater.");
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Enter a valid email address.");
-  return { ...input, participant_name, phone, email, payment_reference, notes, amount_paid: Number(input.amount_paid.toFixed(2)) };
+  return { ...input, participant_name, phone, email, payment_reference, selected_dates, notes, amount_paid: Number(input.amount_paid.toFixed(2)) };
 }
 
 function message(error: unknown, fallback: string): string {
