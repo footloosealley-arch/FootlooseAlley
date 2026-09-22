@@ -4,7 +4,7 @@ begin;
 
 alter table public."Events" add column if not exists event_dates date[];
 update public."Events" set event_dates = array[event_date] where event_dates is null or cardinality(event_dates) = 0;
-alter table public."Events" alter column event_dates set default array[event_date];
+alter table public."Events" alter column event_dates set default '{}';
 alter table public."Events" alter column event_dates set not null;
 
 alter table public."Event_Registrations" add column if not exists selected_dates date[];
