@@ -67,7 +67,7 @@ export default function PublicEventRegistrationPage({ params }: { params: Promis
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [registration, setRegistration] = useState<{ id: number; phone: string; paymentUrl: string | null; amount: number; originalAmount: number; discountAmount: number; couponCode: string | null } | null>(null);
+  const [registration, setRegistration] = useState<{ id: number; phone: string; paymentUrl: string | null; amount: number; originalAmount: number; discountAmount: number; couponCode: string | null; selectedDates: string[] } | null>(null);
   const [reference, setReference] = useState("");
   const [referenceSaved, setReferenceSaved] = useState(false);
   const [couponCode, setCouponCode] = useState("");
