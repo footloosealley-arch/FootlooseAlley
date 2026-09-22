@@ -83,7 +83,7 @@ Deno.serve(async (request) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
     const { data: event, error: eventError } = await supabase
       .from("Events")
-      .select("id,title,event_type,event_date,start_time,end_time,location,max_capacity,fee,status,description,image_url,contact_phone,public_registration_enabled,payment_upi_id,payment_payee_name")
+      .select("id,title,event_type,event_date,event_dates,start_time,end_time,location,max_capacity,fee,status,description,image_url,contact_phone,public_registration_enabled,payment_upi_id,payment_payee_name")
       .eq("id", eventId)
       .eq("status", "Upcoming")
       .eq("public_registration_enabled", true)
@@ -91,19 +91,22 @@ Deno.serve(async (request) => {
     if (eventError) throw eventError;
     if (!event) return response(404, { error: "This event is not accepting public registrations." }, origin);
 
+    const eventDates = Array.isArray(event.event_dates) && event.event_dates.length ? event.event_dates : [event.event_date];
     const { data: registrationGroups, error: countError } = await supabase
       .from("Event_Registrations")
-      .select("group_size")
+      .select("group_size,selected_dates")
       .eq("event_id", eventId)
       .neq("attendance_status", "Cancelled");
     if (countError) throw countError;
-    const registered = (registrationGroups ?? []).reduce((sum, row) => sum + Number(row.group_size ?? 1), 0);
+    const registeredByDate = new Map<string, number>(eventDates.map((date: string) => [date, 0]));
+    for (const row of registrationGroups ?? []) for (const date of (Array.isArray(row.selected_dates) ? row.selected_dates : eventDates.slice(0, 1))) if (registeredByDate.has(date)) registeredByDate.set(date, (registeredByDate.get(date) ?? 0) + Number(row.group_size ?? 1));
+    const registered = [...registeredByDate.values()].reduce((sum, value) => sum + value, 0);
 
     if (body.action === "event") {
       return response(200, {
         ok: true,
         event: {
-          id: event.id, title: event.title, eventType: event.event_type, eventDate: event.event_date,
+          id: event.id, title: event.title, eventType: event.event_type, eventDate: event.event_date, eventDates: eventDates.map((date: string) => ({ date, registered: registeredByDate.get(date) ?? 0, spotsLeft: Math.max(0, event.max_capacity - (registeredByDate.get(date) ?? 0)) })),
           startTime: event.start_time, endTime: event.end_time, location: event.location,
           capacity: event.max_capacity, registered, spotsLeft: Math.max(0, event.max_capacity - registered),
           fee: Number(event.fee), description: event.description, imageUrl: event.image_url,
@@ -115,8 +118,10 @@ Deno.serve(async (request) => {
     if (body.action === "coupon") {
       try {
         const groupSize = Math.max(1, Math.min(20, Number(body.groupSize) || 1));
-        if (!Number.isInteger(groupSize) || groupSize > Math.max(0, event.max_capacity - registered)) return response(409, { error: "There are not enough places remaining for this group." }, origin);
-        const coupon = await resolveCoupon(supabase, eventId, body.couponCode, Number(event.fee) * groupSize);
+        const selectedDates = Array.isArray(body.selectedDates) ? [...new Set(body.selectedDates.map((value) => cleanText(value, 10)).filter((value) => eventDates.includes(value)))] : [];
+        if (selectedDates.length === 0) return response(400, { error: "Select at least one event date." }, origin);
+        if (!Number.isInteger(groupSize) || selectedDates.some((date) => groupSize > Math.max(0, event.max_capacity - (registeredByDate.get(date) ?? 0)))) return response(409, { error: "There are not enough places remaining for this group." }, origin);
+        const coupon = await resolveCoupon(supabase, eventId, body.couponCode, Number(event.fee) * groupSize * selectedDates.length);
         if (!coupon.code) return response(400, { error: "Enter a coupon code." }, origin);
         return response(200, { ok: true, couponCode: coupon.code, discountPercent: coupon.percent, discountAmount: coupon.discount, amount: coupon.amount }, origin);
       } catch (couponError) {
@@ -143,7 +148,9 @@ Deno.serve(async (request) => {
 
     if (body.action !== "register") return response(400, { error: "Unsupported action." }, origin);
     if (cleanText(body.website, 200)) return response(400, { error: "Unable to submit registration." }, origin);
-    if (registered >= event.max_capacity) return response(409, { error: "This event is fully booked." }, origin);
+    const selectedDates = Array.isArray(body.selectedDates) ? [...new Set(body.selectedDates.map((value) => cleanText(value, 10)).filter((value) => eventDates.includes(value)))] : [];
+    if (selectedDates.length === 0) return response(400, { error: "Select at least one event date." }, origin);
+    if (selectedDates.some((date) => (registeredByDate.get(date) ?? 0) >= event.max_capacity)) return response(409, { error: "One or more selected dates are fully booked." }, origin);
 
     const name = cleanText(body.name, 120);
     const phone = cleanText(body.phone, 30).replace(/\D/g, "");
@@ -154,11 +161,11 @@ Deno.serve(async (request) => {
     if (phone.length < 7 || phone.length > 15) return response(400, { error: "Enter a valid phone number." }, origin);
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return response(400, { error: "Enter a valid email address." }, origin);
     if (!Number.isInteger(groupSize) || groupSize < 1 || groupSize > 20) return response(400, { error: "A group booking can contain between 1 and 20 participants." }, origin);
-    if (groupSize > event.max_capacity - registered) return response(409, { error: "There are not enough places remaining for this group." }, origin);
     if (additionalNames.length !== groupSize - 1 || additionalNames.some((value) => value.length < 2)) return response(400, { error: "Enter the name of every additional participant." }, origin);
 
     let coupon;
-    const originalAmount = Number((Number(event.fee) * groupSize).toFixed(2));
+    if (selectedDates.some((date) => groupSize > Math.max(0, event.max_capacity - (registeredByDate.get(date) ?? 0)))) return response(409, { error: "There are not enough places remaining on one or more selected dates." }, origin);
+    const originalAmount = Number((Number(event.fee) * groupSize * selectedDates.length).toFixed(2));
     try { coupon = await resolveCoupon(supabase, eventId, body.couponCode, originalAmount); }
     catch (couponError) {
       const code = couponError instanceof Error ? couponError.message : "";
@@ -173,7 +180,7 @@ Deno.serve(async (request) => {
         payment_status: coupon.amount === 0 ? "Waived" : "Pending",
         amount_paid: 0, attendance_status: "Registered", registration_source: "Public Link",
         coupon_code: coupon.code, original_amount: originalAmount, discount_amount: coupon.discount, amount_due: coupon.amount,
-        group_size: groupSize, additional_participant_names: additionalNames,
+        group_size: groupSize, selected_dates: selectedDates, additional_participant_names: additionalNames,
       })
       .select("id").single();
     if (registrationError) {
@@ -184,7 +191,7 @@ Deno.serve(async (request) => {
     const paymentUrl = coupon.amount > 0 && event.payment_upi_id && event.payment_payee_name
       ? upiUrl(event.payment_upi_id, event.payment_payee_name, coupon.amount, event.title, registration.id)
       : null;
-    return response(201, { ok: true, registrationId: registration.id, phone, paymentUrl, amount: coupon.amount, originalAmount, discountAmount: coupon.discount, couponCode: coupon.code, groupSize }, origin);
+    return response(201, { ok: true, registrationId: registration.id, phone, paymentUrl, amount: coupon.amount, originalAmount, discountAmount: coupon.discount, couponCode: coupon.code, groupSize, selectedDates }, origin);
   } catch (error) {
     console.error("public-event-registration failed", error);
     return response(500, { error: "Unable to process the registration. Please try again." }, origin);

@@ -13,6 +13,7 @@ type PublicEvent = {
   title: string;
   eventType: string;
   eventDate: string;
+  eventDates: { date: string; registered: number; spotsLeft: number }[];
   startTime: string;
   endTime: string;
   location: string;
@@ -38,6 +39,7 @@ type RegistrationResult = {
   couponCode?: string | null;
   discountPercent?: number;
   groupSize?: number;
+  selectedDates?: string[];
 };
 
 const inputClass = "mt-2 min-h-11 w-full rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-rose-500 focus:ring-4 focus:ring-rose-100";
@@ -65,13 +67,15 @@ export default function PublicEventRegistrationPage({ params }: { params: Promis
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [registration, setRegistration] = useState<{ id: number; phone: string; paymentUrl: string | null; amount: number; originalAmount: number; discountAmount: number; couponCode: string | null } | null>(null);
+  const [registration, setRegistration] = useState<{ id: number; phone: string; paymentUrl: string | null; amount: number; originalAmount: number; discountAmount: number; couponCode: string | null; selectedDates: string[] } | null>(null);
   const [reference, setReference] = useState("");
   const [referenceSaved, setReferenceSaved] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [couponResult, setCouponResult] = useState<{ code: string; percent: number; discount: number; amount: number } | null>(null);
   const [groupSize, setGroupSize] = useState(1);
   const [additionalNames, setAdditionalNames] = useState<string[]>([]);
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const selectedCapacity = selectedDates.length ? Math.min(...eventItem?.eventDates.filter((slot) => selectedDates.includes(slot.date)).map((slot) => slot.spotsLeft) ?? [0]) : eventItem?.spotsLeft ?? 0;
 
   useEffect(() => {
     let active = true;
@@ -109,11 +113,12 @@ export default function PublicEventRegistrationPage({ params }: { params: Promis
         email: String(form.get("email") ?? ""),
         couponCode: couponResult?.code ?? "",
         groupSize,
+        selectedDates,
         additionalParticipantNames: additionalNames,
         website: String(form.get("website") ?? ""),
       });
       if (!result.registrationId || !result.phone) throw new Error("Registration was received, but the confirmation could not be displayed.");
-      setRegistration({ id: result.registrationId, phone: result.phone, paymentUrl: result.paymentUrl ?? null, amount: result.amount ?? 0, originalAmount: result.originalAmount ?? result.amount ?? 0, discountAmount: result.discountAmount ?? 0, couponCode: result.couponCode ?? null });
+      setRegistration({ id: result.registrationId, phone: result.phone, paymentUrl: result.paymentUrl ?? null, amount: result.amount ?? 0, originalAmount: result.originalAmount ?? result.amount ?? 0, discountAmount: result.discountAmount ?? 0, couponCode: result.couponCode ?? null, selectedDates: result.selectedDates ?? selectedDates });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to register.");
     } finally {
@@ -125,7 +130,7 @@ export default function PublicEventRegistrationPage({ params }: { params: Promis
     if (!eventId || !couponCode.trim()) { setError("Enter a coupon code."); return; }
     setSubmitting(true); setError(""); setCouponResult(null);
     try {
-      const result = await callRegistration({ action: "coupon", eventId, couponCode, groupSize });
+      const result = await callRegistration({ action: "coupon", eventId, couponCode, groupSize, selectedDates });
       setCouponResult({ code: result.couponCode ?? couponCode.toUpperCase(), percent: result.discountPercent ?? 0, discount: result.discountAmount ?? 0, amount: result.amount ?? 0 });
       setCouponCode(result.couponCode ?? couponCode.toUpperCase());
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to apply coupon."); }
@@ -161,7 +166,7 @@ export default function PublicEventRegistrationPage({ params }: { params: Promis
           <div className="p-8 text-center sm:p-12"><Ticket className="mx-auto size-12 text-rose-500" /><h1 className="mt-4 text-2xl font-black text-slate-950">Registration unavailable</h1><p className="mt-2 text-slate-600">{error || "This event is not accepting public registrations."}</p></div>
         ) : registration ? (
           <section className="p-5 sm:p-8">
-            <div className="text-center"><CheckCircle2 className="mx-auto size-16 text-emerald-600" /><h1 className="mt-4 text-3xl font-black text-slate-950">You’re registered!</h1><p className="mt-2 text-slate-600">Your place for <strong>{eventItem.title}</strong> has been reserved.</p></div>
+            <div className="text-center"><CheckCircle2 className="mx-auto size-16 text-emerald-600" /><h1 className="mt-4 text-3xl font-black text-slate-950">You’re registered!</h1><p className="mt-2 text-slate-600">Your place for <strong>{eventItem.title}</strong> has been reserved for {registration.selectedDates?.map((date) => friendlyDate(date)).join(", ") || "the selected dates"}.</p></div>
             {registration.amount > 0 ? (
               <div className="mt-7 rounded-2xl border border-amber-200 bg-amber-50 p-5">
                 <h2 className="text-lg font-bold text-slate-950">Pay {money.format(registration.amount)} by UPI</h2>
@@ -181,25 +186,25 @@ export default function PublicEventRegistrationPage({ params }: { params: Promis
               <p className="text-sm font-bold uppercase tracking-[0.16em] text-rose-700">{eventItem.eventType}</p>
               <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{eventItem.title}</h1>
               {eventItem.description && <p className="mt-3 leading-7 text-slate-600">{eventItem.description}</p>}
-              <div className="mt-5 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
+              <div className="mt-5 grid gap-3 text-sm text-slate-700 sm:grid-cols-2"><div className="rounded-xl bg-slate-50 p-3 sm:col-span-2"><p className="font-bold">Choose your dates</p><div className="mt-2 grid gap-2 sm:grid-cols-3">{eventItem.eventDates.map((slot)=><label key={slot.date} className={`flex cursor-pointer items-start gap-2 rounded-xl border p-3 ${selectedDates.includes(slot.date) ? "border-rose-400 bg-rose-50" : "border-slate-200 bg-white"} ${slot.spotsLeft===0 ? "opacity-50" : ""}`}><input type="checkbox" className="mt-1 size-4" disabled={slot.spotsLeft===0} checked={selectedDates.includes(slot.date)} onChange={e=>{setSelectedDates(current=>e.target.checked?[...current,slot.date]:current.filter(date=>date!==slot.date));setCouponResult(null);}}/><span><strong className="block">{friendlyDate(slot.date)}</strong><span className="text-xs text-slate-500">{slot.spotsLeft} places left</span></span></label>)}</div>{selectedDates.length===0&&<p className="mt-2 text-xs font-semibold text-rose-700">Select at least one date. You can choose multiple dates.</p>}</div>
                 <p className="flex items-center gap-2 rounded-xl bg-slate-50 p-3"><CalendarDays className="size-5 text-rose-600" />{friendlyDate(eventItem.eventDate)}</p>
                 <p className="flex items-center gap-2 rounded-xl bg-slate-50 p-3"><Clock3 className="size-5 text-rose-600" />{friendlyTime(eventItem.startTime)}–{friendlyTime(eventItem.endTime)}</p>
                 <p className="flex items-center gap-2 rounded-xl bg-slate-50 p-3"><MapPin className="size-5 text-rose-600" />{eventItem.location}</p>
-                <p className="flex items-center gap-2 rounded-xl bg-slate-50 p-3"><Users className="size-5 text-rose-600" />{eventItem.spotsLeft} places left</p>
+                <p className="flex items-center gap-2 rounded-xl bg-slate-50 p-3"><Users className="size-5 text-rose-600" />{selectedCapacity} places left</p>
               </div>
-              <p className="mt-5 text-xl font-black text-slate-950">{eventItem.fee === 0 ? "Free entry" : money.format(eventItem.fee)}</p>
-              {eventItem.spotsLeft === 0 ? <p className="mt-6 rounded-xl bg-amber-50 p-4 font-semibold text-amber-900">This event is fully booked.</p> : (
+              <p className="mt-5 text-xl font-black text-slate-950">{eventItem.fee === 0 ? "Free entry" : `${money.format(eventItem.fee)} per person / date`}</p>
+              {selectedCapacity === 0 && selectedDates.length > 0 ? <p className="mt-6 rounded-xl bg-amber-50 p-4 font-semibold text-amber-900">This event is fully booked.</p> : (
                 <form className="mt-7 space-y-5 border-t border-rose-100 pt-7" onSubmit={register}>
                   <h2 className="text-xl font-bold text-slate-950">Reserve your place</h2>
                   <div className="grid gap-5 sm:grid-cols-2"><label className={labelClass}>Full name <span className="text-rose-600">*</span><input className={inputClass} name="name" autoComplete="name" required minLength={2} maxLength={120} /></label><label className={labelClass}>Mobile number <span className="text-rose-600">*</span><input className={inputClass} name="phone" type="tel" inputMode="tel" autoComplete="tel" required minLength={7} maxLength={20} /></label></div>
                   <label className={labelClass}>Email (optional)<input className={inputClass} name="email" type="email" autoComplete="email" maxLength={200} /></label>
-                  <label className={labelClass}>Number of participants <span className="text-rose-600">*</span><input className={inputClass} type="number" inputMode="numeric" min={1} max={Math.min(20, eventItem.spotsLeft)} required value={groupSize} onChange={(event) => { const size = Math.max(1, Math.min(Math.min(20, eventItem.spotsLeft), Number(event.target.value) || 1)); setGroupSize(size); setAdditionalNames((current) => Array.from({ length: size - 1 }, (_, index) => current[index] ?? "")); setCouponResult(null); }} /><span className="mt-1 block text-xs font-normal text-slate-500">The primary contact is participant 1. Maximum {Math.min(20, eventItem.spotsLeft)} in this booking.</span></label>
+                  <label className={labelClass}>Number of participants <span className="text-rose-600">*</span><input className={inputClass} type="number" inputMode="numeric" min={1} max={Math.min(20, Math.max(1, selectedCapacity))} required value={groupSize} onChange={(event) => { const size = Math.max(1, Math.min(Math.min(20, Math.max(1, selectedCapacity)), Number(event.target.value) || 1)); setGroupSize(size); setAdditionalNames((current) => Array.from({ length: size - 1 }, (_, index) => current[index] ?? "")); setCouponResult(null); }} /><span className="mt-1 block text-xs font-normal text-slate-500">The primary contact is participant 1. Maximum {Math.min(20, Math.max(1, selectedCapacity))} per selected date.</span></label>
                   {additionalNames.length > 0 && <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4"><h3 className="font-bold text-slate-900">Additional participant names</h3>{additionalNames.map((name, index) => <label className={labelClass} key={index}>Participant {index + 2} <span className="text-rose-600">*</span><input className={inputClass} required minLength={2} maxLength={120} value={name} onChange={(event) => setAdditionalNames((current) => current.map((value, itemIndex) => itemIndex === index ? event.target.value : value))} /></label>)}</div>}
-                  {groupSize > 1 && <p className="rounded-xl bg-violet-50 p-3 text-sm text-violet-900"><strong>Group total:</strong> {groupSize} × {money.format(eventItem.fee)} = {money.format(eventItem.fee * groupSize)}</p>}
+                  {groupSize > 1 && <p className="rounded-xl bg-violet-50 p-3 text-sm text-violet-900"><strong>Group total:</strong> {groupSize} × {money.format(eventItem.fee)} × {selectedDates.length} date{selectedDates.length === 1 ? "" : "s"} = {money.format(eventItem.fee * groupSize * selectedDates.length)}</p>}
                   {eventItem.fee > 0 && <div className="rounded-2xl border border-rose-100 bg-rose-50/50 p-4"><label className={labelClass}>Discount coupon (optional)</label><div className="mt-2 flex gap-2"><input className="min-h-11 min-w-0 flex-1 rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm uppercase text-slate-900 outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-100" value={couponCode} onChange={(event) => { setCouponCode(event.target.value.toUpperCase()); setCouponResult(null); }} maxLength={24} placeholder="Enter coupon code" /><Button type="button" variant="outline" className="min-h-11 rounded-xl" disabled={submitting || !couponCode.trim()} onClick={() => void applyCoupon()}>Apply</Button></div>{couponResult && <div className="mt-3 rounded-xl bg-emerald-100 p-3 text-sm text-emerald-900"><p className="font-bold">{couponResult.code} applied — {couponResult.percent}% off</p><p className="mt-1"><span className="line-through">{money.format(eventItem.fee * groupSize)}</span> <strong className="ml-2 text-base">{money.format(couponResult.amount)}</strong> · You save {money.format(couponResult.discount)}</p></div>}</div>}
                   <label className="absolute -left-[10000px]" aria-hidden="true">Website<input name="website" tabIndex={-1} autoComplete="off" /></label>
                   {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-                  <Button type="submit" size="lg" className="w-full rounded-xl" disabled={submitting}>{submitting ? <Loader2 className="animate-spin" /> : <Ticket />} Register{eventItem.fee > 0 ? " and continue to payment" : ""}</Button>
+                  <Button type="submit" size="lg" className="w-full rounded-xl" disabled={submitting || selectedDates.length===0}>{submitting ? <Loader2 className="animate-spin" /> : <Ticket />} Register{eventItem.fee > 0 ? " and continue to payment" : ""}</Button>
                   <p className="text-center text-xs leading-5 text-slate-500">Your details are used only to manage this event registration.</p>
                 </form>
               )}

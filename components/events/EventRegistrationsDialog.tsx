@@ -38,6 +38,7 @@ const emptyForm: EventRegistrationInput = {
   amount_paid: 0,
   attendance_status: "Registered",
   notes: "",
+  selected_dates: [],
 };
 
 function toForm(item: EventRegistration): EventRegistrationInput {
@@ -50,6 +51,7 @@ function toForm(item: EventRegistration): EventRegistrationInput {
     notes: item.notes ?? "",
     email: item.email ?? "",
     payment_reference: item.payment_reference ?? "",
+    selected_dates: item.selected_dates,
   };
 }
 
@@ -101,7 +103,7 @@ export default function EventRegistrationsDialog({ open, eventItem, onOpenChange
 
   function startAdd() {
     setEditing(null);
-    setForm({ ...emptyForm, amount_paid: Number(eventItem?.fee ?? 0) });
+    setForm({ ...emptyForm, amount_paid: Number(eventItem?.fee ?? 0), selected_dates: eventItem?.event_dates?.slice(0, 1) ?? [eventItem?.event_date ?? ""] });
     setShowForm(true);
     setError("");
   }
@@ -204,7 +206,7 @@ export default function EventRegistrationsDialog({ open, eventItem, onOpenChange
               <div className="flex items-center justify-between sm:col-span-2"><h3 className="font-semibold">{editing ? "Edit participant" : "Register participant"}</h3><Button type="button" size="icon-sm" variant="ghost" onClick={closeForm}><X /><span className="sr-only">Close form</span></Button></div>
               <div className="space-y-2"><Label htmlFor="event-participant-name">Name</Label><Input id="event-participant-name" required value={form.participant_name} onChange={(event) => setForm({ ...form, participant_name: event.target.value })} /></div>
               <div className="space-y-2"><Label htmlFor="event-participant-phone">Phone</Label><Input id="event-participant-phone" inputMode="tel" required value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} /></div>
-              <div className="space-y-2 sm:col-span-2"><Label htmlFor="event-participant-email">Email</Label><Input id="event-participant-email" type="email" value={form.email ?? ""} onChange={(event) => setForm({ ...form, email: event.target.value })} /></div>
+              <div className="space-y-2 sm:col-span-2"><Label>Event dates</Label><div className="grid gap-2 rounded-xl border bg-muted/30 p-3 sm:grid-cols-2">{(eventItem?.event_dates?.length?eventItem.event_dates:[eventItem?.event_date??""]).map(date=><label key={date} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.selected_dates?.includes(date)} onChange={e=>setForm(current=>({...current,selected_dates:e.target.checked?[...(current.selected_dates??[]),date]:(current.selected_dates??[]).filter(d=>d!==date)}))}/>{date}</label>)}</div></div><div className="space-y-2 sm:col-span-2"><Label htmlFor="event-participant-email">Email</Label><Input id="event-participant-email" type="email" value={form.email ?? ""} onChange={(event) => setForm({ ...form, email: event.target.value })} /></div>
               <div className="space-y-2"><Label>Payment status</Label><Select value={form.payment_status} onValueChange={(value) => value && setForm({ ...form, payment_status: value as EventPaymentStatus })}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent>{EVENT_PAYMENT_STATUSES.map((value) => <SelectItem value={value} key={value}>{value}</SelectItem>)}</SelectContent></Select></div>
               <div className="space-y-2"><Label htmlFor="event-amount-paid">Amount paid (₹)</Label><Input id="event-amount-paid" type="number" min={0} step="0.01" value={form.amount_paid} onChange={(event) => setForm({ ...form, amount_paid: Number(event.target.value) })} /></div>
               <div className="space-y-2 sm:col-span-2"><Label htmlFor="event-payment-reference">UPI transaction reference</Label><Input id="event-payment-reference" value={form.payment_reference ?? ""} onChange={(event) => setForm({ ...form, payment_reference: event.target.value })} /></div>
@@ -224,7 +226,7 @@ export default function EventRegistrationsDialog({ open, eventItem, onOpenChange
                   <div className="flex items-start justify-between gap-3"><div><h3 className="font-semibold">{item.participant_name}</h3><p className="mt-1 text-sm text-muted-foreground">{item.phone}</p></div><span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold">{item.attendance_status}</span></div>
                   <div className="mt-3 flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">{item.payment_status}</span><span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">₹{Number(item.amount_paid).toLocaleString("en-IN")}</span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700">{item.registration_source}</span></div>
                   {item.coupon_code && <p className="mt-2 text-xs font-medium text-emerald-700">Coupon {item.coupon_code}: ₹{Number(item.discount_amount).toLocaleString("en-IN")} off · ₹{Number(item.amount_due).toLocaleString("en-IN")} due</p>}
-                  {item.group_size > 1 && <div className="mt-2 rounded-xl bg-blue-50 p-2.5 text-xs text-blue-900"><p className="font-semibold">Group booking · {item.group_size} participants</p><p className="mt-1">Additional: {item.additional_participant_names.join(", ")}</p></div>}
+                  {item.selected_dates?.length > 0 && <p className="mt-2 text-xs font-medium text-primary">Dates: {item.selected_dates.join(", ")}</p>}{item.group_size > 1 && <div className="mt-2 rounded-xl bg-blue-50 p-2.5 text-xs text-blue-900"><p className="font-semibold">Group booking · {item.group_size} participants</p><p className="mt-1">Additional: {item.additional_participant_names.join(", ")}</p></div>}
                   {item.payment_reference && <p className="mt-2 text-xs text-muted-foreground">UPI reference: {item.payment_reference}</p>}
                   {item.receipt_number && <p className="mt-2 text-xs font-semibold text-emerald-700">Receipt: {item.receipt_number}</p>}
                   {item.refunded_amount > 0 && <p className="mt-2 text-xs font-semibold text-orange-700">Refunded: ₹{item.refunded_amount.toLocaleString("en-IN")}</p>}

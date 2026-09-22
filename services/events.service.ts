@@ -7,7 +7,7 @@ export type EventStatus = (typeof EVENT_STATUSES)[number];
 
 export interface StudioEvent {
   id: number; created_at: string; updated_at: string; title: string;
-  event_type: EventType; event_date: string; start_time: string; end_time: string;
+  event_type: EventType; event_date: string; event_dates: string[]; start_time: string; end_time: string;
   location: string; max_capacity: number; fee: number; status: EventStatus;
   description: string | null; contact_phone: string | null; notes: string | null;
   image_url: string | null; image_path: string | null;
@@ -15,7 +15,7 @@ export interface StudioEvent {
   payment_payee_name: string | null;
 }
 export interface EventInput {
-  title: string; event_type: EventType; event_date: string; start_time: string;
+  title: string; event_type: EventType; event_date: string; event_dates: string[]; start_time: string;
   end_time: string; location: string; max_capacity: number; fee: number;
   status: EventStatus; description?: string | null; contact_phone?: string | null;
   notes?: string | null; public_registration_enabled?: boolean;
@@ -27,7 +27,7 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const IMAGE_EXTENSIONS: Record<string, string> = {
   "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
 };
-const fields = "id,created_at,updated_at,title,event_type,event_date,start_time,end_time,location,max_capacity,fee,status,description,contact_phone,notes,image_url,image_path,public_registration_enabled,payment_upi_id,payment_payee_name";
+const fields = "id,created_at,updated_at,title,event_type,event_date,event_dates,start_time,end_time,location,max_capacity,fee,status,description,contact_phone,notes,image_url,image_path,public_registration_enabled,payment_upi_id,payment_payee_name";
 
 function errorMessage(error: unknown, operation: string) {
   return error && typeof error === "object" && "message" in error
@@ -48,7 +48,8 @@ export function normalizeEventInput(input: EventInput): EventInput {
   if (title.length < 2) throw new Error("Title must be at least 2 characters.");
   if (!EVENT_TYPES.includes(input.event_type)) throw new Error("Select a valid event type.");
   if (!EVENT_STATUSES.includes(input.status)) throw new Error("Select a valid status.");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.event_date)) throw new Error("Select a valid event date.");
+  const dates = [...new Set((input.event_dates?.length ? input.event_dates : [input.event_date]).filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)))].sort();
+  if (dates.length === 0) throw new Error("Add at least one valid event date.");
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(input.start_time) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(input.end_time)) throw new Error("Enter valid start and end times.");
   if (input.end_time <= input.start_time) throw new Error("End time must be later than start time.");
   if (!location) throw new Error("Location is required.");
@@ -57,7 +58,7 @@ export function normalizeEventInput(input: EventInput): EventInput {
   if (rawContact && (!contact_phone || contact_phone.length < 7 || contact_phone.length > 15)) throw new Error("Contact phone must contain between 7 and 15 digits.");
   if (input.public_registration_enabled && input.fee > 0 && (!payment_upi_id || !payment_payee_name)) throw new Error("Add a UPI ID and payee name before enabling public registration for a paid event.");
   if (payment_upi_id && !/^[A-Za-z0-9._-]{2,}@[A-Za-z0-9.-]{2,}$/.test(payment_upi_id)) throw new Error("Enter a valid UPI ID, such as studio@bank.");
-  return { ...input, title, location, description, notes, contact_phone, payment_upi_id, payment_payee_name, public_registration_enabled: input.public_registration_enabled ?? false, fee: Number(input.fee.toFixed(2)) };
+  return { ...input, title, location, description, notes, contact_phone, payment_upi_id, payment_payee_name, event_dates: dates, event_date: dates[0], public_registration_enabled: input.public_registration_enabled ?? false, fee: Number(input.fee.toFixed(2)) };
 }
 
 async function ensureEventIsUnique(input: EventInput, currentId?: number) {
@@ -134,6 +135,7 @@ async function duplicate(event: StudioEvent) {
     title: `${event.title} (Copy)`,
     event_type: event.event_type,
     event_date: event.event_date,
+    event_dates: event.event_dates?.length ? event.event_dates : [event.event_date],
     start_time: event.start_time,
     end_time: event.end_time,
     location: event.location,
