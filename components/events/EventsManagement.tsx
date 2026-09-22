@@ -143,7 +143,7 @@ export default function EventsManagement() {
     const photo = item.image_url ? `\nEvent photo: ${item.image_url}` : "";
     const description = item.description ? `\n${item.description}` : "";
     const registrationLink = item.public_registration_enabled ? `\nRegister and pay: ${window.location.origin}/forms/events/${item.id}` : "";
-    const text = `${item.title}\nDate: ${friendlyDate(item.event_date)}\nTime: ${friendlyTime(item.start_time)} – ${friendlyTime(item.end_time)}\nLocation: ${item.location}\nFee: ${fee}\nContact: ${contact}${description}${studioContact}${photo}${registrationLink}`;
+    const text = `${item.title}\nDates: ${friendlyDates(item)}\nTime: ${friendlyTime(item.start_time)} – ${friendlyTime(item.end_time)}\nLocation: ${item.location}\nFee: ${fee}\nContact: ${contact}${description}${studioContact}${photo}${registrationLink}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
   }
 
