@@ -26,6 +26,7 @@ import EventAnalyticsDialog from "./EventAnalyticsDialog";
 
 const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 });
 const friendlyDate = (date: string) => new Intl.DateTimeFormat("en-IN", { dateStyle: "long" }).format(new Date(`${date}T00:00:00`));
+const friendlyDates = (item: StudioEvent) => (item.event_dates?.length ? item.event_dates : [item.event_date]).map(friendlyDate).join(", ");
 const friendlyTime = (time: string) => new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(`2000-01-01T${time}:00`));
 
 function localCalendarDate(date = new Date()) {
@@ -163,7 +164,7 @@ export default function EventsManagement() {
       <PageHeader title="Events Management" description="Plan, publish and manage every Footloose Alley event." action={<Button type="button" className="w-full sm:w-auto" onClick={() => { setEditing(null); setOpen(true); }}><Plus /> Add event</Button>} />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         <StatCard label="Upcoming" value={items.filter((item) => item.status === "Upcoming" && item.event_date >= today).length} icon={CalendarDays} />
-        <StatCard label="This month" value={items.filter((item) => item.event_date.startsWith(month)).length} icon={Clock3} />
+        <StatCard label="This month" value={items.filter((item) => (item.event_dates?.some((date) => date.startsWith(month)) ?? item.event_date.startsWith(month))).length} icon={Clock3} />
         <StatCard label="Completed" value={items.filter((item) => item.status === "Completed").length} icon={CheckCircle2} />
         <StatCard label="Collected" value={money.format(totalCollected)} icon={IndianRupee} />
       </div>
@@ -190,7 +191,7 @@ export default function EventsManagement() {
               <CardContent className="flex h-full flex-col p-4 sm:p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h2 className="text-lg font-semibold leading-tight">{item.title}</h2><p className="mt-1 text-sm font-medium text-primary">{item.event_type}</p></div><Badge className={statusTone(item.status)}>{item.status}</Badge></div>
                 <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-                  <p className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2.5"><CalendarDays className="size-4 text-primary" />{friendlyDate(item.event_date)}</p>
+                  <p className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2.5"><CalendarDays className="size-4 text-primary" />{friendlyDates(item)}</p>
                   <p className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2.5"><Clock3 className="size-4 text-primary" />{friendlyTime(item.start_time)}–{friendlyTime(item.end_time)}</p>
                   <p className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2.5"><MapPin className="size-4 text-primary" />{item.location}</p>
                   <p className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2.5"><Users className="size-4 text-primary" />{registrationCount}/{item.max_capacity} registered · {spotsLeft} left</p>
