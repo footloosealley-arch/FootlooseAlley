@@ -161,7 +161,6 @@ Deno.serve(async (request) => {
     if (phone.length < 7 || phone.length > 15) return response(400, { error: "Enter a valid phone number." }, origin);
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return response(400, { error: "Enter a valid email address." }, origin);
     if (!Number.isInteger(groupSize) || groupSize < 1 || groupSize > 20) return response(400, { error: "A group booking can contain between 1 and 20 participants." }, origin);
-    if (groupSize > event.max_capacity - registered) return response(409, { error: "There are not enough places remaining for this group." }, origin);
     if (additionalNames.length !== groupSize - 1 || additionalNames.some((value) => value.length < 2)) return response(400, { error: "Enter the name of every additional participant." }, origin);
 
     let coupon;
