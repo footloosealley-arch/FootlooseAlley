@@ -46,6 +46,19 @@ function upiUrl(upiId: string, payeeName: string, amount: number, title: string,
   return `upi://pay?${params.toString()}`;
 }
 
+function automaticDiscount(groupSize: number, selectedDateCount: number, total: number) {
+  const multiDayPercent = selectedDateCount >= 3 ? 20 : selectedDateCount === 2 ? 10 : 0;
+  const groupPercent = groupSize >= 5 ? 20 : groupSize >= 3 ? 10 : 0;
+  const percent = Math.max(multiDayPercent, groupPercent);
+  const discount = Number(Math.min(total, total * percent / 100).toFixed(2));
+  const label =
+    percent === 0 ? null :
+    multiDayPercent >= groupPercent
+      ? (selectedDateCount >= 3 ? "3-Day Discount" : "2-Day Discount")
+      : (groupSize >= 5 ? "5+ Group Discount" : "3+ Group Discount");
+  return { code: label, percent, discount, amount: Number((total - discount).toFixed(2)) };
+}
+
 async function resolveCoupon(supabase: ReturnType<typeof createClient>, eventId: number, rawCode: unknown, total: number) {
   const code = cleanText(rawCode, 24).toUpperCase();
   if (!code) return { code: null, percent: 0, discount: 0, amount: total };
@@ -121,9 +134,12 @@ Deno.serve(async (request) => {
         const selectedDates = Array.isArray(body.selectedDates) ? [...new Set(body.selectedDates.map((value) => cleanText(value, 10)).filter((value) => eventDates.includes(value)))] : [];
         if (selectedDates.length === 0) return response(400, { error: "Select at least one event date." }, origin);
         if (!Number.isInteger(groupSize) || selectedDates.some((date) => groupSize > Math.max(0, event.max_capacity - (registeredByDate.get(date) ?? 0)))) return response(409, { error: "There are not enough places remaining for this group." }, origin);
-        const coupon = await resolveCoupon(supabase, eventId, body.couponCode, Number(event.fee) * groupSize * selectedDates.length);
-        if (!coupon.code) return response(400, { error: "Enter a coupon code." }, origin);
-        return response(200, { ok: true, couponCode: coupon.code, discountPercent: coupon.percent, discountAmount: coupon.discount, amount: coupon.amount }, origin);
+        const total = Number(event.fee) * groupSize * selectedDates.length;
+        const automatic = automaticDiscount(groupSize, selectedDates.length, total);
+        const manual = await resolveCoupon(supabase, eventId, body.couponCode, total);
+        if (!manual.code) return response(400, { error: "Enter a coupon code." }, origin);
+        const coupon = manual.percent > automatic.percent ? manual : automatic;
+        return response(200, { ok: true, couponCode: coupon.code, discountPercent: coupon.percent, discountAmount: coupon.discount, amount: coupon.amount, automaticDiscount: automatic }, origin);
       } catch (couponError) {
         const code = couponError instanceof Error ? couponError.message : "";
         const message = code === "EXPIRED_COUPON" ? "This coupon has expired." : code === "USED_COUPON" ? "This coupon has reached its usage limit." : "This coupon code is invalid.";
@@ -166,7 +182,11 @@ Deno.serve(async (request) => {
     let coupon;
     if (selectedDates.some((date) => groupSize > Math.max(0, event.max_capacity - (registeredByDate.get(date) ?? 0)))) return response(409, { error: "There are not enough places remaining on one or more selected dates." }, origin);
     const originalAmount = Number((Number(event.fee) * groupSize * selectedDates.length).toFixed(2));
-    try { coupon = await resolveCoupon(supabase, eventId, body.couponCode, originalAmount); }
+    try {
+      const automatic = automaticDiscount(groupSize, selectedDates.length, originalAmount);
+      const manual = await resolveCoupon(supabase, eventId, body.couponCode, originalAmount);
+      coupon = manual.percent > automatic.percent ? manual : automatic;
+    }
     catch (couponError) {
       const code = couponError instanceof Error ? couponError.message : "";
       const message = code === "EXPIRED_COUPON" ? "This coupon has expired." : code === "USED_COUPON" ? "This coupon has reached its usage limit." : "This coupon code is invalid.";
